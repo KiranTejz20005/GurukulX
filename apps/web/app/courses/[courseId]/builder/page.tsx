@@ -14,6 +14,7 @@ export default function CourseBuilderPage() {
   const [course, setCourse] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [activeModuleId, setActiveModuleId] = useState<string | null>(null)
+  const [activeLessonId, setActiveLessonId] = useState<string | null>(null)
 
   const fetchCourse = () => {
     api.courses.getOne(courseId)
@@ -36,12 +37,24 @@ export default function CourseBuilderPage() {
     }
   }, [courseId])
 
-  if (loading) return <div className="flex h-screen items-center justify-center bg-[#09090b] text-white">Loading builder...</div>
+  if (loading) return <div className="flex h-screen items-center justify-center bg-background text-foreground">Loading builder...</div>
 
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden text-gray-200">
-      <LeftPanel course={course} activeModuleId={activeModuleId} setActiveModuleId={setActiveModuleId} onUpdate={fetchCourse} />
-      <MiddlePanel course={course} activeModuleId={activeModuleId} onUpdate={fetchCourse} />
+    <div className="flex h-screen w-full bg-background overflow-hidden text-foreground">
+      <LeftPanel 
+        course={course} 
+        activeModuleId={activeModuleId} 
+        setActiveModuleId={setActiveModuleId} 
+        activeLessonId={activeLessonId}
+        setActiveLessonId={setActiveLessonId}
+        onUpdate={fetchCourse} 
+      />
+      <MiddlePanel 
+        course={course} 
+        activeModuleId={activeModuleId} 
+        activeLessonId={activeLessonId}
+        onUpdate={fetchCourse} 
+      />
       <RightPanel />
     </div>
   )

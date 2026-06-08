@@ -1,64 +1,99 @@
-import { Eye, Save, Type, Image as ImageIcon, Video, Code, AlignLeft } from "lucide-react"
+"use client"
+
+import { Settings, Sparkles, X, SlidersHorizontal, Eye, Lock } from "lucide-react"
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
 
 export function RightPanel() {
+  const [activeTab, setActiveTab] = useState<'settings' | 'ai'>('settings')
+
   return (
-    <div className="flex-1 bg-background flex flex-col h-full min-w-0">
-      {/* Header */}
-      <div className="h-14 border-b border-white/10 flex items-center justify-between px-6 shrink-0">
-        <div className="flex items-center gap-4">
-          <span className="text-xs font-medium px-2.5 py-1 bg-white/10 text-gray-300 rounded-full">Draft</span>
-          <p className="text-sm text-gray-400">Last saved just now</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors flex items-center gap-2">
-            <Eye className="w-4 h-4" />
-            Preview
-          </button>
-          <button className="px-4 py-2 text-sm font-medium text-white bg-white/10 rounded-lg hover:bg-white/20 transition-colors flex items-center gap-2">
-            <Save className="w-4 h-4" />
-            Save
-          </button>
-        </div>
+    <div className="w-80 bg-card border-l border-border flex flex-col h-full flex-shrink-0 text-foreground">
+      {/* Header Tabs */}
+      <div className="h-14 border-b border-border flex items-center px-2 shrink-0 bg-background/50 backdrop-blur">
+        <button 
+          onClick={() => setActiveTab('settings')}
+          className={`flex-1 flex items-center justify-center gap-2 h-10 text-sm font-medium rounded-md transition-colors ${activeTab === 'settings' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}
+        >
+          <SlidersHorizontal className="w-4 h-4" />
+          Properties
+        </button>
+        <button 
+          onClick={() => setActiveTab('ai')}
+          className={`flex-1 flex items-center justify-center gap-2 h-10 text-sm font-medium rounded-md transition-colors ${activeTab === 'ai' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}
+        >
+          <Sparkles className="w-4 h-4 text-purple-500" />
+          AI Tutor
+        </button>
       </div>
 
-      {/* Editor Content */}
+      {/* Tab Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto py-12 px-8">
-          <input 
-            type="text" 
-            placeholder="Lesson Title..." 
-            defaultValue="Reading Materials"
-            className="w-full text-4xl font-bold bg-transparent text-white focus:outline-none placeholder:text-gray-700 mb-8"
-          />
-
-          {/* Floating Toolbar Placeholder */}
-          <div className="flex items-center gap-1 mb-6 p-1 border border-white/10 rounded-lg bg-[#09090b] w-fit">
-            <button className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors"><Type className="w-4 h-4" /></button>
-            <div className="w-px h-4 bg-white/10 mx-1"></div>
-            <button className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors"><AlignLeft className="w-4 h-4" /></button>
-            <button className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors"><ImageIcon className="w-4 h-4" /></button>
-            <button className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors"><Video className="w-4 h-4" /></button>
-            <button className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors"><Code className="w-4 h-4" /></button>
-          </div>
-
-          <div className="prose prose-invert max-w-none">
-            <textarea 
-              rows={20}
-              placeholder="Start writing or type '/' for commands..."
-              defaultValue="Welcome to the reading materials for this module. In this section, we will cover the core fundamentals necessary to understand the subsequent video lessons. \n\nPlease read through the attached PDF document."
-              className="w-full text-base bg-transparent text-gray-300 focus:outline-none placeholder:text-gray-700 resize-none leading-relaxed"
-            />
-          </div>
-
-          {/* Upload Zone */}
-          <div className="mt-8 border-2 border-dashed border-white/10 rounded-xl p-12 flex flex-col items-center justify-center text-center hover:border-blue-500/50 transition-colors cursor-pointer group bg-[#09090b]">
-            <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-4 group-hover:bg-blue-500/10 transition-colors">
-              <ImageIcon className="w-6 h-6 text-gray-400 group-hover:text-blue-500 transition-colors" />
+        {activeTab === 'settings' ? (
+          <div className="p-5 space-y-6">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Visibility</label>
+              <div className="space-y-2 mt-2">
+                <button className="w-full flex items-center justify-between p-3 border border-primary/50 bg-primary/5 rounded-lg text-left">
+                  <div className="flex items-center gap-3">
+                    <Eye className="w-4 h-4 text-primary" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Published</p>
+                      <p className="text-xs text-muted-foreground">Visible to all enrolled students</p>
+                    </div>
+                  </div>
+                  <div className="w-4 h-4 rounded-full border-4 border-primary bg-background" />
+                </button>
+                <button className="w-full flex items-center justify-between p-3 border border-border bg-background hover:bg-accent rounded-lg text-left transition-colors">
+                  <div className="flex items-center gap-3">
+                    <Lock className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Draft</p>
+                      <p className="text-xs text-muted-foreground">Only visible to instructors</p>
+                    </div>
+                  </div>
+                  <div className="w-4 h-4 rounded-full border border-border" />
+                </button>
+              </div>
             </div>
-            <p className="text-sm font-medium text-white mb-1">Click to upload or drag and drop</p>
-            <p className="text-xs text-gray-500">SVG, PNG, JPG or PDF (max. 10MB)</p>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">URL Slug</label>
+              <input 
+                type="text" 
+                placeholder="my-lesson-slug" 
+                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Changing this might break existing links.</p>
+            </div>
+            
+            <div className="space-y-2 pt-4 border-t border-border">
+              <Button variant="destructive" className="w-full">
+                Delete Item
+              </Button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-col h-full">
+            <div className="flex-1 p-5 overflow-y-auto">
+              <div className="bg-accent rounded-lg p-4 text-sm text-foreground shadow-sm">
+                <p className="flex items-center gap-2 font-medium mb-1">
+                  <Sparkles className="w-4 h-4 text-purple-500" /> AI Assistant
+                </p>
+                <p className="text-muted-foreground">I can help you generate content, create quizzes, or improve your writing. What do you need help with?</p>
+              </div>
+            </div>
+            <div className="p-4 border-t border-border bg-background">
+              <textarea 
+                placeholder="Ask AI for help..." 
+                className="w-full bg-accent border border-border rounded-lg px-3 py-2 text-sm min-h-[80px] resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-muted-foreground"
+              />
+              <Button className="w-full mt-2" size="sm">
+                Send to AI
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
