@@ -1,9 +1,11 @@
 import { Search, Bell, ExternalLink } from "lucide-react"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 
 export function Topbar() {
   return (
     <header className="h-14 bg-background border-b border-border flex items-center justify-between px-6 shrink-0">
       <div className="flex items-center gap-3 text-sm">
+        <SidebarTrigger className="-ml-2" />
         <div className="flex items-center gap-2 text-muted-foreground">
           <div className="w-6 h-6 rounded bg-muted flex items-center justify-center text-xs font-medium border border-border">
             ST
