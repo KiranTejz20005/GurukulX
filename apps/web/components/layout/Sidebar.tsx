@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
-import { Home, LayoutDashboard, BarChart2, Settings, BookOpen, Layers, Image as ImageIcon, Tags, Grid, MessageSquare, Users, Zap, ChevronDown, ChevronRight, Activity } from "lucide-react"
+import { Home, LayoutDashboard, BarChart2, Settings as SettingsIcon, BookOpen, Layers, Image as ImageIcon, Tags, Grid, MessageSquare, Users, Zap, ChevronDown, ChevronRight, Activity, Code, Workflow } from "lucide-react"
 
 const NAV_GROUPS = [
   {
@@ -20,7 +20,7 @@ const NAV_GROUPS = [
           { label: "Compliance", href: "/stats/compliance" }
         ]
       },
-      { label: "Setup", icon: Settings, href: "/setup" },
+      { label: "Setup", icon: SettingsIcon, href: "/setup" },
     ]
   },
   {
@@ -44,6 +44,22 @@ const NAV_GROUPS = [
     title: "Automation",
     items: [
       { label: "MCP", icon: Zap, href: "/mcp" },
+      { label: "API", icon: Code, href: "/api-settings" },
+      { label: "Zapier", icon: Workflow, href: "/zapier" },
+    ]
+  },
+  {
+    title: "Settings",
+    items: [
+      { 
+        label: "Settings", 
+        icon: SettingsIcon, 
+        href: "/settings",
+        subItems: [
+          { label: "General", href: "/settings/general" },
+          { label: "Billing", href: "/settings/billing" }
+        ]
+      },
     ]
   }
 ]
