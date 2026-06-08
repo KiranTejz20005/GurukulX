@@ -44,6 +44,20 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Landing Page Settings Section */}
+      <div className="mt-8 bg-[#09090b] border border-white/10 rounded-xl p-8 max-w-3xl flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-medium text-white">Landing Page</h2>
+          <p className="text-sm text-gray-400 mt-1">Customize the public-facing landing page of your academy.</p>
+        </div>
+        <a 
+          href="/settings/landingpage/edit"
+          className="px-5 py-2.5 text-sm font-medium text-black bg-white rounded-lg hover:bg-gray-200 transition-colors"
+        >
+          Open Editor
+        </a>
+      </div>
     </div>
   )
 }
