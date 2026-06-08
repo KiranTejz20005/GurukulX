@@ -1,12 +1,14 @@
 "use client"
 
-import { useState } from "react"
-import { BadgeCheck, BookOpen, ChevronRight, FileText, Globe, UserPlus, Users } from "lucide-react"
+import { useState, useEffect } from "react"
+import { BadgeCheck, BookOpen, ChevronRight, FileText, Globe, UserPlus, Users, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
+import { api } from "@/lib/api"
 
-const MOCK_SETUP_ITEMS = [
+const BASE_SETUP_ITEMS = [
   { id: 'profile', title: 'Update Profile', desc: 'Add your name, avatar, and bio to personalize your account.', isCompleted: true, icon: UserPlus },
-  { id: 'org', title: 'Update Organization', desc: 'Set up your academy name, logo, and custom branding.', isCompleted: false, icon: Users },
+  { id: 'org', title: 'Update Organization', desc: 'Set up your academy name, logo, and custom branding.', isCompleted: true, icon: Users },
   { id: 'course', title: 'Create a Course', desc: 'Draft your first course to start teaching.', isCompleted: false, icon: BookOpen },
   { id: 'lesson', title: 'Create a Lesson', desc: 'Add content, videos, or reading materials to your course.', isCompleted: false, icon: FileText },
   { id: 'exercise', title: 'Create an Exercise', desc: 'Add quizzes or assignments to test student knowledge.', isCompleted: false, icon: FileText },
@@ -14,14 +16,82 @@ const MOCK_SETUP_ITEMS = [
 ]
 
 export default function SetupPage() {
-  const [items, setItems] = useState(MOCK_SETUP_ITEMS)
+  const router = useRouter()
+  const [items, setItems] = useState(BASE_SETUP_ITEMS)
+  const [isLoading, setIsLoading] = useState(true)
+  const [courses, setCourses] = useState<any[]>([])
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        const fetchedCourses = await api.courses.getAll()
+        setCourses(fetchedCourses)
+        
+        const hasCourse = fetchedCourses.length > 0
+        
+        let hasLesson = false
+        if (hasCourse) {
+          for (const course of fetchedCourses) {
+            if (course.modules && course.modules.some((m: any) => m.lessons && m.lessons.length > 0)) {
+              hasLesson = true
+              break
+            }
+          }
+        }
+
+        const newItems = [...BASE_SETUP_ITEMS]
+        const courseItem = newItems.find(i => i.id === 'course')
+        const lessonItem = newItems.find(i => i.id === 'lesson')
+        
+        if (courseItem) courseItem.isCompleted = hasCourse
+        if (lessonItem) lessonItem.isCompleted = hasLesson
+        
+        setItems(newItems)
+      } catch (e) {
+        console.error("Failed to load setup status", e)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    checkStatus()
+  }, [])
   
   const completedCount = items.filter(i => i.isCompleted).length
   const totalCount = items.length
 
   const handleAction = (id: string) => {
-    // For demo purposes, toggle completion
-    setItems(items.map(item => item.id === id ? { ...item, isCompleted: true } : item))
+    switch (id) {
+      case 'profile':
+      case 'org':
+        router.push('/settings')
+        break
+      case 'course':
+        router.push('/courses')
+        break
+      case 'lesson':
+      case 'exercise':
+        if (courses.length > 0) {
+          router.push(`/courses/${courses[0].id}/builder`)
+        } else {
+          router.push('/courses')
+        }
+        break
+      case 'publish':
+        if (courses.length > 0) {
+          router.push(`/courses/${courses[0].id}/settings`)
+        } else {
+          router.push('/courses')
+        }
+        break
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full w-full items-center justify-center min-h-[500px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   return (
@@ -33,7 +103,7 @@ export default function SetupPage() {
 
       <div className="border border-border bg-card rounded-xl p-6 mb-8 shadow-sm">
         <p className="text-muted-foreground mb-4 text-sm">
-          Complete these steps to set up your learning platform
+          Follow these steps to set up your academy and launch your first course.
         </p>
         <div className="flex items-center gap-3">
           <p className="text-sm font-medium text-foreground">
