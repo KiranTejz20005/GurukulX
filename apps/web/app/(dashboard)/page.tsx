@@ -4,6 +4,7 @@ import { useState } from "react"
 import { ArrowUp, BookOpen, GraduationCap, Award, ChevronDown, CheckCircle, Circle, LoaderCircle, Compass, ShieldCheck, Users } from "lucide-react"
 import { BlurFade } from "@/components/ui/blur-fade"
 import { useRouter } from "next/navigation"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 type CreatingStep = 'reading' | 'naming' | 'building'
 
@@ -229,14 +230,30 @@ export default function DashboardHome() {
                     
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-2">
-                        <button className="flex items-center gap-2 bg-muted/50 border border-border px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-muted transition-colors">
-                          Beginner
-                          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-                        </button>
-                        <button className="flex items-center gap-2 bg-muted/50 border border-border px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-muted transition-colors">
-                          Gemini 1.5 Pro
-                          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-                        </button>
+                        <Select defaultValue="beginner">
+                          <SelectTrigger className="h-8 w-[120px] bg-muted/50 border-border text-xs font-medium">
+                            <SelectValue placeholder="Level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="beginner">Beginner</SelectItem>
+                            <SelectItem value="intermediate">Intermediate</SelectItem>
+                            <SelectItem value="advanced">Advanced</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Select defaultValue="gemini">
+                          <SelectTrigger className="h-8 w-[140px] bg-muted/50 border-border text-xs font-medium">
+                            <SelectValue placeholder="Model" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="gemini">Google API (Gemini)</SelectItem>
+                            <SelectItem value="claude">Claude</SelectItem>
+                            <SelectItem value="openai">OpenAI</SelectItem>
+                            <SelectItem value="kimi">Kimi</SelectItem>
+                            <SelectItem value="moonshot">Moonshot</SelectItem>
+                            <SelectItem value="nvidia">Nvidia</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       
                       <button 
