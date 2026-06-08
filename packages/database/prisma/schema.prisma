@@ -1,0 +1,196 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  workspaces    WorkspaceMember[]
+  courses       Course[]          @relation("CourseInstructor")
+  enrollments   Enrollment[]
+  submissions   Submission[]
+  quizAttempts  QuizAttempt[]
+  forumPosts    ForumPost[]
+}
+
+model Workspace {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  customDomain String? @unique
+  branding    Json?    // Logos, colors
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members     WorkspaceMember[]
+  courses     Course[]
+  forums      Forum[]
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  INSTRUCTOR
+  STUDENT
+}
+
+model WorkspaceMember {
+  id          String    @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        Role      @default(STUDENT)
+  createdAt   DateTime  @default(now())
+  
+  user        User      @relation(fields: [userId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([userId, workspaceId])
+}
+
+model Course {
+  id          String    @id @default(cuid())
+  workspaceId String
+  instructorId String
+  title       String
+  description String?
+  published   Boolean   @default(false)
+  thumbnail   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  instructor  User      @relation("CourseInstructor", fields: [instructorId], references: [id])
+  modules     Module[]
+  enrollments Enrollment[]
+}
+
+model Enrollment {
+  id          String    @id @default(cuid())
+  courseId    String
+  userId      String
+  enrolledAt  DateTime  @default(now())
+
+  course      Course    @relation(fields: [courseId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@unique([userId, courseId])
+}
+
+model Module {
+  id          String    @id @default(cuid())
+  courseId    String
+  title       String
+  order       Int
+  
+  course      Course    @relation(fields: [courseId], references: [id])
+  lessons     Lesson[]
+}
+
+enum LessonType {
+  VIDEO
+  TEXT
+  QUIZ
+  ASSIGNMENT
+}
+
+model Lesson {
+  id          String     @id @default(cuid())
+  moduleId    String
+  title       String
+  type        LessonType
+  content     String?    // Rich text or JSON for editor
+  videoUrl    String?    // Cloudflare R2 URL
+  order       Int
+  isPublished Boolean    @default(false)
+
+  module      Module     @relation(fields: [moduleId], references: [id])
+  progress    Progress[]
+  quiz        Quiz?
+  assignment  Assignment?
+}
+
+model Progress {
+  id          String   @id @default(cuid())
+  userId      String
+  lessonId    String
+  completed   Boolean  @default(false)
+  completedAt DateTime?
+
+  lesson      Lesson   @relation(fields: [lessonId], references: [id])
+
+  @@unique([userId, lessonId])
+}
+
+model Quiz {
+  id          String     @id @default(cuid())
+  lessonId    String     @unique
+  questions   Json       // Array of questions and answers
+  passingScore Int       @default(70)
+
+  lesson      Lesson     @relation(fields: [lessonId], references: [id])
+  attempts    QuizAttempt[]
+}
+
+model QuizAttempt {
+  id          String   @id @default(cuid())
+  userId      String
+  quizId      String
+  score       Int
+  passed      Boolean
+
+  user        User     @relation(fields: [userId], references: [id])
+  quiz        Quiz     @relation(fields: [quizId], references: [id])
+}
+
+model Assignment {
+  id          String     @id @default(cuid())
+  lessonId    String     @unique
+  prompt      String
+  dueDate     DateTime?
+
+  lesson      Lesson     @relation(fields: [lessonId], references: [id])
+  submissions Submission[]
+}
+
+model Submission {
+  id           String     @id @default(cuid())
+  userId       String
+  assignmentId String
+  content      String
+  grade        Int?
+  submittedAt  DateTime   @default(now())
+
+  user         User       @relation(fields: [userId], references: [id])
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+}
+
+model Forum {
+  id          String   @id @default(cuid())
+  workspaceId String
+  title       String
+  description String?
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  posts       ForumPost[]
+}
+
+model ForumPost {
+  id          String   @id @default(cuid())
+  forumId     String
+  userId      String
+  content     String
+  createdAt   DateTime @default(now())
+
+  forum       Forum    @relation(fields: [forumId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
+}
