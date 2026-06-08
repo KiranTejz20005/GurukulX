@@ -37,10 +37,10 @@ export default function CourseBuilderPage() {
     }
   }, [courseId])
 
-  if (loading) return <div className="flex h-screen items-center justify-center bg-background text-foreground">Loading builder...</div>
+  if (loading) return <div className="flex h-[calc(100vh-64px)] items-center justify-center bg-background text-foreground">Loading builder...</div>
 
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden text-foreground">
+    <div className="flex h-[calc(100vh-64px)] w-full bg-background overflow-hidden text-foreground">
       <LeftPanel 
         course={course} 
         activeModuleId={activeModuleId} 

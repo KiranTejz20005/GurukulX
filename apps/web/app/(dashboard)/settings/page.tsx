@@ -58,6 +58,39 @@ export default function SettingsPage() {
           Open Editor
         </a>
       </div>
+
+      {/* Custom Domains Section */}
+      <div className="mt-8 bg-[#09090b] border border-white/10 rounded-xl p-8 max-w-3xl">
+        <div className="mb-6">
+          <h2 className="text-lg font-medium text-white">Custom Domain</h2>
+          <p className="text-sm text-gray-400 mt-1">Connect your own domain to your academy.</p>
+        </div>
+        <div className="flex gap-4">
+          <input 
+            type="text" 
+            placeholder="e.g. academy.yourdomain.com"
+            className="flex-1 h-10 px-4 bg-transparent border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+          />
+          <button className="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+            Verify
+          </button>
+        </div>
+      </div>
+
+      {/* Billing Section */}
+      <div className="mt-8 bg-[#09090b] border border-white/10 rounded-xl p-8 max-w-3xl flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-medium text-white">Billing & Subscription</h2>
+          <p className="text-sm text-gray-400 mt-1">Manage your payment methods and current plan.</p>
+          <div className="mt-3 inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-green-500/10 text-green-500 border border-green-500/20">
+            Pro Plan Active
+          </div>
+        </div>
+        <button className="px-5 py-2.5 text-sm font-medium text-white bg-[#18181b] border border-white/10 rounded-lg hover:bg-[#27272a] transition-colors">
+          Manage Billing
+        </button>
+      </div>
+
     </div>
   )
 }
