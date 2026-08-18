@@ -1,104 +1,135 @@
 "use client"
 
+import * as React from "react"
 import Link from "next/link"
-import { Search, Filter, BookOpen, Clock, Star, PlayCircle } from "lucide-react"
+import { Search, Filter, BookOpen, Clock, Star, PlayCircle, Loader2, Sparkles } from "lucide-react"
+import { api } from "@/lib/api"
 
-export default function AcademyHomePage({ params }: { params: { orgSlug: string } }) {
-  // Mock courses
-  const courses = [
-    {
-      id: "1",
-      slug: "intro-to-design",
-      title: "Introduction to User Interface Design",
-      description: "Learn the fundamentals of UI design, color theory, and typography from industry experts.",
-      image: "https://images.unsplash.com/photo-1561070791-2526d30994b5?q=80&w=2000&auto=format&fit=crop",
-      instructor: "Jane Smith",
-      duration: "4 hours",
-      rating: 4.8,
-      price: "$49"
-    },
-    {
-      id: "2",
-      slug: "advanced-react",
-      title: "Advanced React Patterns",
-      description: "Master React context, custom hooks, and performance optimization techniques for large scale apps.",
-      image: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?q=80&w=2000&auto=format&fit=crop",
-      instructor: "John Doe",
-      duration: "6.5 hours",
-      rating: 4.9,
-      price: "$89"
-    },
-    {
-      id: "3",
-      slug: "marketing-101",
-      title: "Digital Marketing 101",
-      description: "A comprehensive guide to SEO, content marketing, and paid advertising strategies.",
-      image: "https://images.unsplash.com/photo-1432888498266-38ffec3eaf0a?q=80&w=2000&auto=format&fit=crop",
-      instructor: "Sarah Jenkins",
-      duration: "3 hours",
-      rating: 4.7,
-      price: "Free"
-    }
-  ]
+export default function AcademyHomePage({ params }: { params: Promise<{ orgSlug: string }> }) {
+  const { orgSlug } = React.use(params)
+
+  const [courses, setCourses] = React.useState<any[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [searchQuery, setSearchQuery] = React.useState("")
+
+  React.useEffect(() => {
+    api.courses.getAll()
+      .then((data) => {
+        setCourses(Array.isArray(data) ? data : [])
+        setLoading(false)
+      })
+      .catch((err) => {
+        console.error("Failed to load catalog courses", err)
+        setLoading(false)
+      })
+  }, [])
+
+  const formattedOrgName = (orgSlug || "Demo").replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+
+  const filteredCourses = courses.filter(c => {
+    if (!searchQuery.trim()) return true
+    return (c.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+           (c.description || "").toLowerCase().includes(searchQuery.toLowerCase())
+  })
 
   return (
-    <div className="flex-1 w-full flex flex-col">
+    <div className="flex-1 w-full flex flex-col bg-background text-foreground">
       {/* Hero Section */}
-      <section className="bg-primary text-primary-foreground py-20 px-4 md:px-6">
-        <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
-            Welcome to {params.orgSlug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+      <section className="relative overflow-hidden bg-gradient-to-b from-primary/15 via-background to-background py-20 px-4 md:px-6 border-b border-border/50">
+        <div className="max-w-5xl mx-auto text-center space-y-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary">
+            <Sparkles className="w-3.5 h-3.5" /> Official Learning Portal
+          </div>
+
+          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-foreground leading-tight">
+            Welcome to {formattedOrgName}
           </h1>
-          <p className="text-xl md:text-2xl text-primary-foreground/80 max-w-2xl mx-auto mb-10">
-            Expand your skills with our premium courses taught by industry professionals.
+
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+            Master new skills with interactive courses, structured pathways, and hands-on evaluations.
           </p>
-          <div className="max-w-md mx-auto relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
+
+          <div className="max-w-md mx-auto relative pt-4">
+            <Search className="absolute left-4 top-1/2 text-muted-foreground w-5 h-5 -translate-y-1/2 pointer-events-none" />
             <input 
               type="text" 
-              placeholder="Search for courses..."
-              className="w-full bg-background border-none rounded-full py-4 pl-12 pr-6 text-foreground shadow-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search courses..."
+              className="w-full bg-card border border-border rounded-full py-3.5 pl-12 pr-6 text-sm text-foreground shadow-lg focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-muted-foreground"
             />
           </div>
         </div>
       </section>
 
       {/* Catalog Section */}
-      <section className="py-16 px-4 md:px-6 max-w-7xl mx-auto w-full flex-1">
+      <section className="py-12 px-4 md:px-6 max-w-7xl mx-auto w-full flex-1">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl font-bold text-foreground">All Courses</h2>
-          <button className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 rounded-lg text-sm font-medium transition-colors">
-            <Filter className="w-4 h-4" />
-            Filter
-          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-foreground">Course Catalog</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Explore available courses</p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {courses.map((course) => (
-            <Link key={course.id} href={`/${params.orgSlug}/course/${course.slug}`} className="group flex flex-col bg-card border border-border rounded-2xl overflow-hidden hover:shadow-xl transition-all hover:-translate-y-1">
-              <div className="aspect-[16/9] relative overflow-hidden bg-muted">
-                <img src={course.image} alt={course.title} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500" />
-                <div className="absolute top-4 right-4 bg-background/90 backdrop-blur text-foreground px-3 py-1 rounded-full text-xs font-bold shadow-sm">
-                  {course.price}
-                </div>
-              </div>
-              <div className="p-6 flex flex-col flex-1">
-                <h3 className="text-xl font-bold text-foreground mb-2 line-clamp-2 group-hover:text-primary transition-colors">{course.title}</h3>
-                <p className="text-sm text-muted-foreground mb-6 line-clamp-2 flex-1">{course.description}</p>
-                
-                <div className="flex items-center justify-between text-sm text-muted-foreground border-t border-border pt-4">
-                  <div className="flex items-center gap-4">
-                    <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {course.duration}</span>
-                    <span className="flex items-center gap-1.5 text-yellow-500"><Star className="w-4 h-4 fill-current" /> {course.rating}</span>
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <p className="text-sm">Loading course catalog...</p>
+          </div>
+        ) : filteredCourses.length === 0 ? (
+          <div className="text-center py-20 border border-dashed border-border rounded-2xl bg-card/50 p-8 space-y-4">
+            <BookOpen className="w-12 h-12 mx-auto text-muted-foreground/40" />
+            <h3 className="text-lg font-semibold">No courses found</h3>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              {searchQuery ? `No courses matching "${searchQuery}".` : "No courses have been published in this workspace yet."}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredCourses.map((course) => {
+              const moduleCount = course.modules?.length || 0
+              const thumbnail = course.thumbnail || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=1200&auto=format&fit=crop"
+
+              return (
+                <Link 
+                  key={course.id} 
+                  href={`/${orgSlug}/course/${course.id}`} 
+                  className="group flex flex-col bg-card border border-border rounded-2xl overflow-hidden hover:shadow-xl hover:border-primary/50 transition-all duration-300 hover:-translate-y-1"
+                >
+                  <div className="aspect-[16/9] relative overflow-hidden bg-muted">
+                    <img 
+                      src={thumbnail} 
+                      alt={course.title} 
+                      className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500" 
+                    />
+                    <div className="absolute top-3 right-3 bg-background/90 backdrop-blur text-foreground px-3 py-1 rounded-full text-xs font-semibold shadow-xs">
+                      {course.published ? "Published" : "Draft"}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 text-primary font-medium">
-                    <PlayCircle className="w-4 h-4" />
+
+                  <div className="p-6 flex flex-col flex-1 space-y-3">
+                    <h3 className="text-lg font-bold text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+                      {course.title}
+                    </h3>
+                    
+                    <p className="text-xs text-muted-foreground line-clamp-2 flex-1 leading-relaxed">
+                      {course.description || "No description provided."}
+                    </p>
+                    
+                    <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border pt-4 mt-auto">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <BookOpen className="w-4 h-4 text-primary" /> {moduleCount} Modules
+                      </span>
+                      <span className="flex items-center gap-1 text-primary font-semibold group-hover:translate-x-0.5 transition-transform">
+                        View Course →
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+                </Link>
+              )
+            })}
+          </div>
+        )}
       </section>
     </div>
   )

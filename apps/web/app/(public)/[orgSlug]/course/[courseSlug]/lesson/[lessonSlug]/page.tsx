@@ -1,178 +1,254 @@
 "use client"
 
-import { useState } from "react"
+import * as React from "react"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight, Menu, PlayCircle, FileText, CheckCircle2, MessageSquare } from "lucide-react"
+import { ChevronLeft, ChevronRight, Menu, PlayCircle, FileText, CheckCircle2, HelpCircle, Loader2, ArrowLeft, ArrowRight, Check } from "lucide-react"
+import { api } from "@/lib/api"
 
-export default function LessonViewerPage({ params }: { params: { orgSlug: string, courseSlug: string, lessonSlug: string } }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+export default function LessonViewerPage({ params }: { params: Promise<{ orgSlug: string, courseSlug: string, lessonSlug: string }> }) {
+  const { orgSlug, courseSlug, lessonSlug } = React.use(params)
 
-  const modules = [
-    {
-      title: "Module 1: Getting Started",
-      lessons: [
-        { title: "Introduction to the course", type: "video", duration: "5m", completed: true, slug: "introduction-to-the-course" },
-        { title: "Setting up your environment", type: "video", duration: "15m", completed: false, slug: "setting-up-your-environment" },
-        { title: "Basic concepts overview", type: "text", duration: "10m", completed: false, slug: "basic-concepts-overview" }
-      ]
-    },
-    {
-      title: "Module 2: Core Concepts",
-      lessons: [
-        { title: "Deep dive into state", type: "video", duration: "45m", completed: false, slug: "deep-dive-into-state" },
-        { title: "Component lifecycle", type: "video", duration: "40m", completed: false, slug: "component-lifecycle" },
-      ]
-    }
-  ]
+  const [sidebarOpen, setSidebarOpen] = React.useState(true)
+  const [course, setCourse] = React.useState<any>(null)
+  const [loading, setLoading] = React.useState(true)
+  const [completedLessons, setCompletedLessons] = React.useState<Record<string, boolean>>({})
 
-  const courseTitle = params.courseSlug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-  const lessonTitle = params.lessonSlug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+  React.useEffect(() => {
+    if (!courseSlug) return
+    api.courses.getOne(courseSlug)
+      .then((data) => {
+        setCourse(data)
+        setLoading(false)
+      })
+      .catch((err) => {
+        console.error("Failed to load course for lesson viewer", err)
+        setLoading(false)
+      })
+  }, [courseSlug])
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 z-50 flex h-screen w-screen bg-background items-center justify-center text-muted-foreground gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-sm font-medium">Loading lesson content...</p>
+      </div>
+    )
+  }
+
+  if (!course) {
+    return (
+      <div className="fixed inset-0 z-50 flex h-screen w-screen bg-background flex-col items-center justify-center text-center p-6 space-y-4">
+        <h2 className="text-xl font-bold text-foreground">Lesson Not Found</h2>
+        <p className="text-xs text-muted-foreground">The requested course or lesson content is unavailable.</p>
+        <Link href={`/${orgSlug}`} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium">
+          Return to Catalog
+        </Link>
+      </div>
+    )
+  }
+
+  const modules = course.modules || []
+
+  // Flatten all lessons into a list to determine active, previous, and next lessons
+  const allLessons: { lesson: any, moduleId: string }[] = []
+  modules.forEach((mod: any) => {
+    (mod.lessons || []).forEach((l: any) => {
+      allLessons.push({ lesson: l, moduleId: mod.id })
+    })
+  })
+
+  // Find active lesson by ID or slug match, or default to first
+  const activeItem = allLessons.find(item => item.lesson.id === lessonSlug || item.lesson.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-') === lessonSlug) || allLessons[0]
+  const activeLesson = activeItem?.lesson
+
+  const currentIndex = allLessons.findIndex(item => item.lesson.id === activeLesson?.id)
+  const prevLesson = currentIndex > 0 ? allLessons[currentIndex - 1]?.lesson : null
+  const nextLesson = currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1]?.lesson : null
+
+  const isCompleted = activeLesson?.id ? Boolean(completedLessons[activeLesson.id]) : false
+
+  const toggleComplete = () => {
+    if (!activeLesson?.id) return
+    setCompletedLessons(prev => ({
+      ...prev,
+      [activeLesson.id]: !prev[activeLesson.id]
+    }))
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex h-screen w-screen bg-background overflow-hidden">
+    <div className="fixed inset-0 z-50 flex h-screen w-screen bg-background overflow-hidden text-foreground font-sans">
       
-      {/* Left Sidebar - Curriculum */}
+      {/* Left Sidebar - Course Curriculum */}
       <div className={`${sidebarOpen ? 'w-[320px]' : 'w-0'} flex-shrink-0 border-r border-border bg-card flex flex-col transition-all duration-300 overflow-hidden`}>
-        <div className="h-16 border-b border-border flex items-center px-4 shrink-0 bg-background">
-          <Link href={`/${params.orgSlug}/course/${params.courseSlug}`} className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+        <div className="h-14 border-b border-border flex items-center px-4 shrink-0 bg-background/50 justify-between">
+          <Link href={`/${orgSlug}/course/${course.id}`} className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
             <ChevronLeft className="w-4 h-4" />
-            Back to Course
+            Course Overview
           </Link>
         </div>
         
-        <div className="p-4 border-b border-border bg-muted/20 shrink-0">
-          <h2 className="font-bold text-foreground line-clamp-2">{courseTitle}</h2>
-          <div className="mt-3 flex items-center gap-2">
-            <div className="h-2 flex-1 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-primary w-1/4" />
+        <div className="p-4 border-b border-border bg-muted/20 shrink-0 space-y-2">
+          <h2 className="font-bold text-sm text-foreground line-clamp-2">{course.title}</h2>
+          <div className="flex items-center gap-2">
+            <div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-300" 
+                style={{ width: `${allLessons.length > 0 ? Math.round((Object.keys(completedLessons).length / allLessons.length) * 100) : 0}%` }}
+              />
             </div>
-            <span className="text-xs font-medium text-muted-foreground">25%</span>
+            <span className="text-[10px] font-medium text-muted-foreground">
+              {allLessons.length > 0 ? Math.round((Object.keys(completedLessons).length / allLessons.length) * 100) : 0}% Complete
+            </span>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
-          {modules.map((mod, i) => (
-            <div key={i} className="border-b border-border last:border-b-0">
-              <div className="px-4 py-3 bg-muted/30 font-semibold text-sm text-foreground">
-                {mod.title}
-              </div>
-              <div className="divide-y divide-border/50">
-                {mod.lessons.map((lesson, j) => {
-                  const isActive = lesson.slug === params.lessonSlug
-                  return (
-                    <Link 
-                      key={j} 
-                      href={`/${params.orgSlug}/course/${params.courseSlug}/lesson/${lesson.slug}`}
-                      className={`flex items-start gap-3 p-4 hover:bg-muted/50 transition-colors ${isActive ? 'bg-primary/5 border-l-2 border-primary' : 'border-l-2 border-transparent'}`}
-                    >
-                      <div className="shrink-0 mt-0.5">
-                        {lesson.completed ? (
-                          <CheckCircle2 className="w-4 h-4 text-primary" />
-                        ) : (
-                          <div className="w-4 h-4 rounded-full border border-muted-foreground/50" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-medium line-clamp-2 ${isActive ? 'text-primary' : 'text-foreground'}`}>
-                          {lesson.title}
+        <div className="flex-1 overflow-y-auto divide-y divide-border/50">
+          {modules.map((mod: any, i: number) => {
+            const modLessons = mod.lessons || []
+            return (
+              <div key={mod.id || i} className="border-b border-border/40">
+                <div className="px-4 py-2.5 bg-muted/30 font-semibold text-xs text-muted-foreground uppercase tracking-wider">
+                  {mod.title}
+                </div>
+                <div className="divide-y divide-border/30">
+                  {modLessons.map((lesson: any) => {
+                    const isActive = lesson.id === activeLesson?.id
+                    const lessonIsCompleted = Boolean(completedLessons[lesson.id])
+                    return (
+                      <Link 
+                        key={lesson.id} 
+                        href={`/${orgSlug}/course/${course.id}/lesson/${lesson.id}`}
+                        className={`flex items-start gap-3 p-3 text-xs transition-colors ${
+                          isActive ? 'bg-primary/10 border-l-4 border-primary font-medium text-primary' : 'hover:bg-accent/50 text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <div className="shrink-0 mt-0.5">
+                          {lessonIsCompleted ? (
+                            <CheckCircle2 className="w-4 h-4 text-green-500" />
+                          ) : lesson.type === 'VIDEO' ? (
+                            <PlayCircle className="w-4 h-4 text-primary" />
+                          ) : (
+                            <FileText className="w-4 h-4 text-muted-foreground" />
+                          )}
                         </div>
-                        <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
-                          {lesson.type === 'video' ? <PlayCircle className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
-                          {lesson.duration}
+                        <div className="flex-1 min-w-0">
+                          <p className="truncate text-foreground font-medium">{lesson.title}</p>
+                          <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{lesson.type || 'TEXT'}</span>
                         </div>
-                      </div>
-                    </Link>
-                  )
-                })}
+                      </Link>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 bg-background relative">
-        <header className="h-16 border-b border-border flex items-center justify-between px-4 shrink-0 bg-card">
-          <div className="flex items-center gap-4">
+      {/* Main Lesson Viewport */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
+        
+        {/* Top Navbar Header */}
+        <header className="h-14 border-b border-border flex items-center justify-between px-4 shrink-0 bg-card">
+          <div className="flex items-center gap-3">
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-muted rounded-md text-muted-foreground transition-colors"
+              className="p-1.5 hover:bg-accent rounded-lg text-muted-foreground hover:text-foreground transition-colors"
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="w-4 h-4" />
             </button>
-            <h1 className="font-semibold text-foreground truncate">{lessonTitle}</h1>
+            <h1 className="font-semibold text-xs md:text-sm text-foreground truncate max-w-md">
+              {activeLesson?.title || "Lesson Viewer"}
+            </h1>
           </div>
-          <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md hover:bg-muted">
-              <MessageSquare className="w-4 h-4" />
-              Discuss
-            </button>
-            <button className="bg-primary text-primary-foreground px-4 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2">
-              Mark as Complete
-              <ChevronRight className="w-4 h-4" />
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleComplete}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                isCompleted 
+                  ? 'bg-green-500/10 text-green-500 border border-green-500/30' 
+                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
+              }`}
+            >
+              {isCompleted ? <Check className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+              {isCompleted ? "Completed ✓" : "Mark as Complete"}
             </button>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto">
-          {/* Video Player Mock */}
-          <div className="bg-black aspect-video w-full max-h-[70vh] flex items-center justify-center relative group">
-            <img 
-              src="https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=2000&auto=format&fit=crop" 
-              className="absolute inset-0 w-full h-full object-cover opacity-50"
-              alt="Video Poster"
-            />
-            <button className="w-20 h-20 bg-primary rounded-full flex items-center justify-center text-primary-foreground relative z-10 hover:scale-110 transition-transform shadow-2xl">
-              <PlayCircle className="w-10 h-10 ml-1" />
-            </button>
-            
-            {/* Fake Video Controls */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="h-1.5 bg-white/30 rounded-full mb-4 cursor-pointer overflow-hidden">
-                <div className="h-full bg-primary w-1/3" />
+        {/* Lesson Main Content Area */}
+        <div className="flex-1 overflow-y-auto p-6 md:p-10">
+          {!activeLesson ? (
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-center p-8 space-y-3">
+              <FileText className="w-10 h-10 opacity-30" />
+              <p className="font-medium text-sm text-foreground">No lesson content selected.</p>
+              <p className="text-xs">Select a lesson from the left curriculum sidebar to view.</p>
+            </div>
+          ) : (
+            <div className="max-w-4xl mx-auto space-y-8">
+              {/* Header Title */}
+              <div>
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded bg-primary/10 text-primary uppercase tracking-wider">
+                  {activeLesson.type || 'TEXT'} LESSON
+                </span>
+                <h1 className="text-2xl md:text-3xl font-extrabold text-foreground mt-3 leading-tight">
+                  {activeLesson.title}
+                </h1>
               </div>
-              <div className="flex items-center justify-between text-white text-sm font-medium">
-                <div className="flex items-center gap-4">
-                  <PlayCircle className="w-5 h-5 cursor-pointer hover:text-primary transition-colors" />
-                  <span>01:23 / 05:00</span>
+
+              {/* Video Player if Lesson type is VIDEO */}
+              {activeLesson.type === 'VIDEO' && (
+                <div className="aspect-video w-full rounded-2xl overflow-hidden bg-black border border-border shadow-lg relative">
+                  {activeLesson.videoUrl ? (
+                    activeLesson.videoUrl.includes('youtube.com') || activeLesson.videoUrl.includes('embed') ? (
+                      <iframe src={activeLesson.videoUrl} className="w-full h-full" allowFullScreen />
+                    ) : (
+                      <video src={activeLesson.videoUrl} controls className="w-full h-full object-contain" />
+                    )
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground space-y-2 p-6">
+                      <PlayCircle className="w-12 h-12 text-primary opacity-60" />
+                      <p className="text-xs">Video content stream ready.</p>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-4">
-                  <span className="font-bold border border-white/30 rounded px-1 cursor-pointer hover:bg-white/10">CC</span>
-                  <span className="font-bold cursor-pointer hover:text-primary transition-colors">1x</span>
+              )}
+
+              {/* Text Lesson Content */}
+              <div className="border border-border rounded-2xl bg-card p-6 md:p-8 space-y-4 shadow-xs">
+                <div className="whitespace-pre-wrap leading-relaxed text-sm text-foreground">
+                  {activeLesson.content || <span className="text-muted-foreground italic">No detailed content provided for this lesson yet.</span>}
                 </div>
               </div>
             </div>
+          )}
+        </div>
+
+        {/* Bottom Nav Controls */}
+        <footer className="h-14 border-t border-border bg-card px-6 flex items-center justify-between shrink-0">
+          <div>
+            {prevLesson && (
+              <Link 
+                href={`/${orgSlug}/course/${course.id}/lesson/${prevLesson.id}`}
+                className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" /> Previous: {prevLesson.title}
+              </Link>
+            )}
           </div>
 
-          {/* Lesson Content below video */}
-          <div className="max-w-4xl mx-auto px-6 py-12">
-            <h2 className="text-3xl font-bold mb-6">{lessonTitle}</h2>
-            <div className="prose prose-neutral dark:prose-invert max-w-none">
-              <p className="text-lg text-muted-foreground mb-6">
-                Welcome to the first lesson! In this video, we'll cover the fundamental concepts you need to succeed in this course. Make sure to download the attached resources before proceeding to the next video.
-              </p>
-              
-              <div className="bg-muted/50 border border-border rounded-xl p-6 my-8">
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-primary" />
-                  Downloads & Resources
-                </h3>
-                <ul className="space-y-3">
-                  <li>
-                    <a href="#" className="text-primary hover:underline font-medium flex items-center gap-2">
-                      Course_Slides_Module_1.pdf
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="text-primary hover:underline font-medium flex items-center gap-2">
-                      Starter_Code_Template.zip
-                    </a>
-                  </li>
-                </ul>
-              </div>
-            </div>
+          <div>
+            {nextLesson && (
+              <Link 
+                href={`/${orgSlug}/course/${course.id}/lesson/${nextLesson.id}`}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all shadow-xs"
+              >
+                Next Lesson: {nextLesson.title} <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            )}
           </div>
-        </div>
+        </footer>
       </div>
     </div>
   )

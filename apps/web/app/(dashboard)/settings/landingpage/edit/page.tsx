@@ -15,7 +15,7 @@ export default function LandingPageEditor() {
   // Mock settings state
   const [settings, setSettings] = useState({
     hero: {
-      title: "Welcome to ClassroomIO",
+      title: "Welcome to GurukulX",
       subtitle: "The modern learning platform",
       ctaText: "Get Started",
     },
@@ -28,13 +28,13 @@ export default function LandingPageEditor() {
       items: ["Interactive Lessons", "Expert Mentors", "Community"]
     },
     footer: {
-      text: "© 2026 ClassroomIO"
+      text: "© 2026 GurukulX"
     }
   })
 
   const sections = [
     { key: 'navigation', title: 'Navigation', icon: LinkIcon },
-    { key: 'hero', title: 'Hero Section', icon: Image },
+    { key: 'hero', title: 'Hero Section', icon: ImageIcon },
     { key: 'features', title: 'Features', icon: LayoutTemplate },
     { key: 'footer', title: 'Footer', icon: Settings },
   ]
@@ -179,7 +179,7 @@ export default function LandingPageEditor() {
           {/* Mock Preview Header */}
           <div className="h-16 border-b border-border flex items-center justify-between px-8 bg-card">
             {settings.navigation.showLogo && (
-              <div className="font-bold text-lg tracking-tight">ClassroomIO</div>
+              <div className="font-bold text-lg tracking-tight">GurukulX</div>
             )}
             <div className="flex gap-6">
               {settings.navigation.links.map(link => (

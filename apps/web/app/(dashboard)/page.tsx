@@ -5,6 +5,7 @@ import { ArrowUp, BookOpen, GraduationCap, Award, ChevronDown, CheckCircle, Circ
 import { BlurFade } from "@/components/ui/blur-fade"
 import { useRouter } from "next/navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { api } from "@/lib/api"
 
 type CreatingStep = 'reading' | 'naming' | 'building'
 
@@ -95,17 +96,42 @@ export default function DashboardHome() {
     setCreatingState('creating')
     setCreatingStep('reading')
 
-    // Simulate AI generation process
-    await new Promise((r) => setTimeout(r, 1500))
-    setCreatingStep('naming')
-    
-    await new Promise((r) => setTimeout(r, 2000))
-    setCreatingStep('building')
+    try {
+      // Step 1: Reading
+      await new Promise((r) => setTimeout(r, 1000))
+      setCreatingStep('naming')
 
-    await new Promise((r) => setTimeout(r, 2000))
+      // Step 2: Naming & Creating via Backend API
+      const selectedTemplate = COURSE_TEMPLATES.find((t) => t.id === selectedTemplateId)
+      let title = selectedTemplate?.title
+      if (!title || title === "Blank Canvas") {
+        const words = composerPrompt.trim().split(/\s+/)
+        title = words.slice(0, 5).join(' ') + (words.length > 5 ? '...' : '')
+        title = title.charAt(0).toUpperCase() + title.slice(1)
+      }
 
-    // For now, redirect to the course list or builder
-    router.push('/courses')
+      const createdCourse = await api.courses.create({
+        title: title || 'New AI Course',
+        description: composerPrompt,
+      })
+
+      // Step 3: Building module structure
+      setCreatingStep('building')
+      if (createdCourse?.id) {
+        await api.modules.create(createdCourse.id, { title: 'Module 1: Introduction' }).catch(() => {})
+      }
+
+      await new Promise((r) => setTimeout(r, 1000))
+
+      if (createdCourse?.id) {
+        router.push(`/courses/${createdCourse.id}/builder`)
+      } else {
+        router.push('/courses')
+      }
+    } catch (error) {
+      console.error('Failed to create course:', error)
+      router.push('/courses')
+    }
   }
 
   return (
@@ -222,7 +248,7 @@ export default function DashboardHome() {
 
                   <div className="w-full mt-6 flex flex-col gap-3">
                     <textarea 
-                      placeholder="Ask ClassroomIO to create a course for you..." 
+                      placeholder="Ask GurukulX to create a course for you..." 
                       className="w-full bg-background border border-border focus:border-primary/50 rounded-xl resize-none text-sm placeholder:text-muted-foreground p-4 h-32 outline-none shadow-inner"
                       value={composerPrompt}
                       onChange={(e) => setComposerPrompt(e.target.value)}

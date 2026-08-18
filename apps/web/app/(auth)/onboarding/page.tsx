@@ -35,9 +35,9 @@ export default function OnboardingPage() {
     <div className="bg-card border border-border shadow-lg rounded-2xl p-8 max-w-lg mx-auto w-full">
       <div className="text-center mb-8">
         <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center mx-auto mb-4 font-bold text-xl">
-          C
+          G
         </div>
-        <h1 className="text-2xl font-bold text-foreground">Welcome to ClassroomIO!</h1>
+        <h1 className="text-2xl font-bold text-foreground">Welcome to GurukulX!</h1>
         <p className="text-sm text-muted-foreground mt-2">Let's set up your academy.</p>
       </div>
 
@@ -85,7 +85,7 @@ export default function OnboardingPage() {
                   placeholder="design-mastery"
                 />
                 <span className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-border bg-muted text-muted-foreground text-sm">
-                  .classroomio.com
+                  .gurukulx.dev
                 </span>
               </div>
             </div>

@@ -93,7 +93,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center text-[11px] font-bold text-white">
             <span className="w-3 h-3 bg-white rounded-sm" />
           </div>
-          <span className="font-semibold text-sm truncate group-data-[collapsible=icon]:hidden">ClassroomIO</span>
+          <span className="font-semibold text-sm truncate group-data-[collapsible=icon]:hidden">GurukulX</span>
         </div>
       </SidebarHeader>
 

@@ -139,6 +139,7 @@ const SidebarProvider = React.forwardRef<
       <SidebarContext.Provider value={contextValue}>
         <TooltipProvider delayDuration={0}>
           <div
+            suppressHydrationWarning
             style={
               {
                 "--sidebar-width": SIDEBAR_WIDTH,
@@ -224,6 +225,7 @@ const Sidebar = React.forwardRef<
 
     return (
       <div
+        suppressHydrationWarning
         ref={ref}
         className="group peer hidden text-sidebar-foreground md:block"
         data-state={state}

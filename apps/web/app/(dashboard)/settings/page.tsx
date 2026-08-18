@@ -17,7 +17,7 @@ export default function SettingsPage() {
             <label className="block text-sm font-medium text-white mb-2">Organization Name</label>
             <input 
               type="text" 
-              defaultValue="ClassroomIO" 
+              defaultValue="GurukulX" 
               className="w-full h-10 px-4 bg-transparent border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
             />
           </div>
@@ -25,7 +25,7 @@ export default function SettingsPage() {
             <label className="block text-sm font-medium text-white mb-2">Support Email</label>
             <input 
               type="email" 
-              defaultValue="support@classroomio.com" 
+              defaultValue="support@gurukulx.dev" 
               className="w-full h-10 px-4 bg-transparent border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
             />
           </div>

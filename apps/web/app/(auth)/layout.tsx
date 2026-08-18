@@ -9,7 +9,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="w-6 h-6 bg-primary rounded-md flex items-center justify-center">
             <div className="w-2 h-2 bg-primary-foreground rounded-sm" />
           </div>
-          ClassroomIO
+          GurukulX
         </Link>
       </div>
       
@@ -18,7 +18,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </div>
 
       <div className="absolute bottom-8 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} ClassroomIO. All rights reserved.
+        © {new Date().getFullYear()} GurukulX. All rights reserved.
       </div>
     </div>
   )

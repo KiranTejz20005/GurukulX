@@ -12,8 +12,8 @@ export default function DashboardLayout({
       <AppSidebar />
       <SidebarInset>
         <Topbar />
-        <main className="flex-1 overflow-y-auto px-4 py-6">
-          <div className="mx-auto w-full max-w-6xl">
+        <main className="flex-1 overflow-y-auto px-4 py-6" suppressHydrationWarning>
+          <div className="mx-auto w-full max-w-6xl" suppressHydrationWarning>
             {children}
           </div>
         </main>
