@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -8,7 +8,6 @@ export class LessonsService {
   constructor(private prisma: PrismaService) {}
 
   async create(createLessonDto: CreateLessonDto & { moduleId: string, type: 'VIDEO' | 'TEXT' | 'QUIZ' | 'ASSIGNMENT' }) {
-    // Get highest order for the lesson
     const highestOrderLesson = await this.prisma.lesson.findFirst({
       where: { moduleId: createLessonDto.moduleId },
       orderBy: { order: 'desc' },
@@ -38,6 +37,10 @@ export class LessonsService {
   async findOne(id: string, moduleId: string) {
     const lesson = await this.prisma.lesson.findFirst({
       where: { id, moduleId },
+      include: {
+        quiz: true,
+        assignment: true,
+      },
     });
 
     if (!lesson) {
@@ -57,6 +60,80 @@ export class LessonsService {
   async remove(id: string, moduleId: string) {
     return this.prisma.lesson.delete({
       where: { id, moduleId },
+    });
+  }
+
+  // Quiz submission & auto-grading
+  async submitQuiz(lessonId: string, userId: string, answers: Record<string, string>) {
+    const quiz = await this.prisma.quiz.findUnique({
+      where: { lessonId },
+    });
+
+    if (!quiz) {
+      throw new NotFoundException(`Quiz not found for lesson ID ${lessonId}`);
+    }
+
+    const questions = JSON.parse(quiz.questions || '[]');
+    let totalPoints = 0;
+    let score = 0;
+
+    for (const q of questions) {
+      const qPoints = q.points || 10;
+      totalPoints += qPoints;
+      const studentAnswer = answers[q.id];
+      if (studentAnswer && studentAnswer.trim().toLowerCase() === String(q.correctAnswer).trim().toLowerCase()) {
+        score += qPoints;
+      }
+    }
+
+    const percentage = totalPoints > 0 ? Math.round((score / totalPoints) * 100) : 0;
+    const passed = percentage >= quiz.passingScore;
+
+    const attempt = await this.prisma.quizAttempt.create({
+      data: {
+        userId,
+        quizId: quiz.id,
+        score,
+        passed,
+      },
+    });
+
+    return {
+      attemptId: attempt.id,
+      score,
+      totalPoints,
+      percentage,
+      passed,
+      passingScore: quiz.passingScore,
+      submittedAt: attempt.id,
+    };
+  }
+
+  // Progress completion
+  async markProgress(lessonId: string, userId: string, completed: boolean) {
+    const existing = await this.prisma.progress.findUnique({
+      where: {
+        userId_lessonId: { userId, lessonId },
+      },
+    });
+
+    if (existing) {
+      return this.prisma.progress.update({
+        where: { id: existing.id },
+        data: {
+          completed,
+          completedAt: completed ? new Date() : null,
+        },
+      });
+    }
+
+    return this.prisma.progress.create({
+      data: {
+        userId,
+        lessonId,
+        completed,
+        completedAt: completed ? new Date() : null,
+      },
     });
   }
 }

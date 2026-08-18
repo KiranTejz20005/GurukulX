@@ -1,26 +1,65 @@
-import { Injectable } from '@nestjs/common';
-import { CreateWorkspaceDto } from './dto/create-workspace.dto';
-import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class WorkspacesService {
-  create(createWorkspaceDto: CreateWorkspaceDto) {
-    return 'This action adds a new workspace';
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(data: { name: string; slug: string; customDomain?: string; branding?: string }) {
+    return this.prisma.workspace.create({
+      data: {
+        name: data.name,
+        slug: data.slug,
+        customDomain: data.customDomain,
+        branding: data.branding,
+      },
+    });
   }
 
-  findAll() {
-    return `This action returns all workspaces`;
+  async findAll() {
+    return this.prisma.workspace.findMany({
+      include: {
+        _count: {
+          select: {
+            members: true,
+            courses: true,
+            forums: true,
+          },
+        },
+      },
+    });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} workspace`;
+  async findOne(id: string) {
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id },
+      include: {
+        members: {
+          include: {
+            user: true,
+          },
+        },
+        courses: true,
+      },
+    });
+    if (!workspace) {
+      throw new NotFoundException(`Workspace with ID ${id} not found`);
+    }
+    return workspace;
   }
 
-  update(id: number, updateWorkspaceDto: UpdateWorkspaceDto) {
-    return `This action updates a #${id} workspace`;
+  async update(id: string, data: { name?: string; slug?: string; customDomain?: string; branding?: string }) {
+    await this.findOne(id);
+    return this.prisma.workspace.update({
+      where: { id },
+      data,
+    });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} workspace`;
+  async remove(id: string) {
+    await this.findOne(id);
+    return this.prisma.workspace.delete({
+      where: { id },
+    });
   }
 }

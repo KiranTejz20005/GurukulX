@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Headers } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { ModulesService } from './modules.service';
 import { CreateModuleDto } from './dto/create-module.dto';
 import { UpdateModuleDto } from './dto/update-module.dto';
@@ -25,6 +25,11 @@ export class ModulesController {
   @Patch(':id')
   update(@Param('courseId') courseId: string, @Param('id') id: string, @Body() updateModuleDto: UpdateModuleDto) {
     return this.modulesService.update(id, courseId, updateModuleDto);
+  }
+
+  @Patch(':id/reorder')
+  reorder(@Param('courseId') courseId: string, @Param('id') id: string, @Body('order') order: number) {
+    return this.modulesService.reorder(id, courseId, order);
   }
 
   @Delete(':id')

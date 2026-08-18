@@ -8,9 +8,21 @@ import { ProgramsModule } from './programs/programs.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 import { MediaModule } from './media/media.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { AuthModule } from './auth/auth.module';
+import { ForumsModule } from './forums/forums.module';
 
 @Module({
-  imports: [PrismaModule, CoursesModule, ModulesModule, LessonsModule, ProgramsModule, WorkspacesModule, MediaModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    ForumsModule,
+    CoursesModule,
+    ModulesModule,
+    LessonsModule,
+    ProgramsModule,
+    WorkspacesModule,
+    MediaModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

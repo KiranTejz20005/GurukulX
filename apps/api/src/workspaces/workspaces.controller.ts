@@ -1,14 +1,12 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { WorkspacesService } from './workspaces.service';
-import { CreateWorkspaceDto } from './dto/create-workspace.dto';
-import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 
 @Controller('workspaces')
 export class WorkspacesController {
   constructor(private readonly workspacesService: WorkspacesService) {}
 
   @Post()
-  create(@Body() createWorkspaceDto: CreateWorkspaceDto) {
+  create(@Body() createWorkspaceDto: { name: string; slug: string; customDomain?: string; branding?: string }) {
     return this.workspacesService.create(createWorkspaceDto);
   }
 
@@ -19,16 +17,16 @@ export class WorkspacesController {
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.workspacesService.findOne(+id);
+    return this.workspacesService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateWorkspaceDto: UpdateWorkspaceDto) {
-    return this.workspacesService.update(+id, updateWorkspaceDto);
+  update(@Param('id') id: string, @Body() updateWorkspaceDto: { name?: string; slug?: string; customDomain?: string; branding?: string }) {
+    return this.workspacesService.update(id, updateWorkspaceDto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.workspacesService.remove(+id);
+    return this.workspacesService.remove(id);
   }
 }

@@ -8,7 +8,6 @@ export class ModulesService {
   constructor(private prisma: PrismaService) {}
 
   async create(createModuleDto: CreateModuleDto & { courseId: string }) {
-    // Get highest order for the module
     const highestOrderModule = await this.prisma.module.findFirst({
       where: { courseId: createModuleDto.courseId },
       orderBy: { order: 'desc' },
@@ -55,6 +54,14 @@ export class ModulesService {
       where: { id, courseId },
       data: updateModuleDto,
     });
+  }
+
+  async reorder(id: string, courseId: string, order: number) {
+    await this.prisma.module.update({
+      where: { id, courseId },
+      data: { order },
+    });
+    return this.findAll(courseId);
   }
 
   async remove(id: string, courseId: string) {

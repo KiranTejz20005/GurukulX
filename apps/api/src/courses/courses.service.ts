@@ -7,20 +7,100 @@ import { PrismaService } from '../prisma/prisma.service';
 export class CoursesService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createCourseDto: CreateCourseDto & { workspaceId: string, instructorId: string }) {
+  private async ensureWorkspaceAndUser(workspaceId?: string, instructorId?: string) {
+    let resolvedWorkspaceId = workspaceId;
+    let resolvedInstructorId = instructorId;
+
+    if (resolvedWorkspaceId) {
+      const existingWs = await this.prisma.workspace.findUnique({
+        where: { id: resolvedWorkspaceId },
+      });
+      if (!existingWs) {
+        const firstWs = await this.prisma.workspace.findFirst();
+        if (firstWs) {
+          resolvedWorkspaceId = firstWs.id;
+        } else {
+          const newWs = await this.prisma.workspace.create({
+            data: {
+              name: 'GurukulX Academy',
+              slug: 'gurukulx-default',
+            },
+          });
+          resolvedWorkspaceId = newWs.id;
+        }
+      }
+    } else {
+      const firstWs = await this.prisma.workspace.findFirst();
+      if (firstWs) {
+        resolvedWorkspaceId = firstWs.id;
+      } else {
+        const newWs = await this.prisma.workspace.create({
+          data: {
+            name: 'GurukulX Academy',
+            slug: 'gurukulx-default',
+          },
+        });
+        resolvedWorkspaceId = newWs.id;
+      }
+    }
+
+    if (resolvedInstructorId) {
+      const existingUser = await this.prisma.user.findUnique({
+        where: { id: resolvedInstructorId },
+      });
+      if (!existingUser) {
+        const firstUser = await this.prisma.user.findFirst();
+        if (firstUser) {
+          resolvedInstructorId = firstUser.id;
+        } else {
+          const newUser = await this.prisma.user.create({
+            data: {
+              email: 'instructor@gurukulx.dev',
+              name: 'GurukulX Instructor',
+            },
+          });
+          resolvedInstructorId = newUser.id;
+        }
+      }
+    } else {
+      const firstUser = await this.prisma.user.findFirst();
+      if (firstUser) {
+        resolvedInstructorId = firstUser.id;
+      } else {
+        const newUser = await this.prisma.user.create({
+          data: {
+            email: 'instructor@gurukulx.dev',
+            name: 'GurukulX Instructor',
+          },
+        });
+        resolvedInstructorId = newUser.id;
+      }
+    }
+
+    return { workspaceId: resolvedWorkspaceId, instructorId: resolvedInstructorId };
+  }
+
+  async create(createCourseDto: CreateCourseDto & { workspaceId?: string, instructorId?: string }) {
+    const { workspaceId, instructorId } = await this.ensureWorkspaceAndUser(
+      createCourseDto.workspaceId,
+      createCourseDto.instructorId,
+    );
+
     return this.prisma.course.create({
       data: {
-        title: createCourseDto.title,
-        description: createCourseDto.description,
-        workspaceId: createCourseDto.workspaceId,
-        instructorId: createCourseDto.instructorId,
+        title: createCourseDto.title || 'Untitled Course',
+        description: createCourseDto.description || '',
+        workspaceId,
+        instructorId,
       },
     });
   }
 
-  async findAll(workspaceId: string) {
+  async findAll(workspaceId?: string) {
+    const { workspaceId: resolvedWorkspaceId } = await this.ensureWorkspaceAndUser(workspaceId);
+
     return this.prisma.course.findMany({
-      where: { workspaceId },
+      where: { workspaceId: resolvedWorkspaceId },
       include: {
         modules: {
           include: {
@@ -28,12 +108,13 @@ export class CoursesService {
           },
         },
       },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findOne(id: string, workspaceId: string) {
+  async findOne(id: string, workspaceId?: string) {
     const course = await this.prisma.course.findFirst({
-      where: { id, workspaceId },
+      where: { id },
       include: {
         modules: {
           include: {
@@ -52,14 +133,15 @@ export class CoursesService {
 
   async update(id: string, workspaceId: string, updateCourseDto: UpdateCourseDto) {
     return this.prisma.course.update({
-      where: { id, workspaceId },
+      where: { id },
       data: updateCourseDto,
     });
   }
 
   async remove(id: string, workspaceId: string) {
     return this.prisma.course.delete({
-      where: { id, workspaceId },
+      where: { id },
     });
   }
 }
+

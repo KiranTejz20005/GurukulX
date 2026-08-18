@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Headers } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { LessonsService } from './lessons.service';
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
@@ -30,5 +30,21 @@ export class LessonsController {
   @Delete(':id')
   remove(@Param('moduleId') moduleId: string, @Param('id') id: string) {
     return this.lessonsService.remove(id, moduleId);
+  }
+
+  @Post(':id/quiz/submit')
+  submitQuiz(
+    @Param('id') lessonId: string,
+    @Body() body: { userId: string; answers: Record<string, string> }
+  ) {
+    return this.lessonsService.submitQuiz(lessonId, body.userId || 'demo-user', body.answers || {});
+  }
+
+  @Post(':id/progress')
+  markProgress(
+    @Param('id') lessonId: string,
+    @Body() body: { userId: string; completed: boolean }
+  ) {
+    return this.lessonsService.markProgress(lessonId, body.userId || 'demo-user', body.completed ?? true);
   }
 }

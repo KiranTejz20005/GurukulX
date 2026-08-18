@@ -15,4 +15,7 @@ export class CreateLessonDto {
   @IsOptional()
   @IsIn(['VIDEO', 'TEXT', 'QUIZ', 'ASSIGNMENT'])
   type?: 'VIDEO' | 'TEXT' | 'QUIZ' | 'ASSIGNMENT';
+
+  @IsOptional()
+  isPublished?: boolean;
 }
