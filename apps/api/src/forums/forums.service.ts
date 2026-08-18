@@ -5,14 +5,35 @@ import { PrismaService } from '../prisma/prisma.service';
 export class ForumsService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(workspaceId: string) {
+  async findAll(workspaceId?: string) {
     return this.prisma.forum.findMany({
-      where: { workspaceId },
+      where: workspaceId ? { workspaceId } : undefined,
       include: {
+        posts: {
+          include: { user: true },
+          orderBy: { createdAt: 'desc' }
+        },
         _count: {
           select: { posts: true },
         },
       },
+      orderBy: { id: 'desc' }
+    });
+  }
+
+  async createForum(data: { workspaceId: string; title: string; description?: string }) {
+    return this.prisma.forum.create({
+      data: {
+        workspaceId: data.workspaceId,
+        title: data.title,
+        description: data.description,
+      },
+      include: {
+        posts: true,
+        _count: {
+          select: { posts: true }
+        }
+      }
     });
   }
 

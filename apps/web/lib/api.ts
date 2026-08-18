@@ -32,5 +32,19 @@ export const api = {
     getAll: (moduleId: string) => apiClient.get(`/modules/${moduleId}/lessons`).then((res) => res.data),
     update: (moduleId: string, lessonId: string, data: any) => apiClient.patch(`/modules/${moduleId}/lessons/${lessonId}`, data).then((res) => res.data),
     delete: (moduleId: string, lessonId: string) => apiClient.delete(`/modules/${moduleId}/lessons/${lessonId}`).then((res) => res.data),
+  },
+  forums: {
+    getAll: () => apiClient.get('/forums').then((res) => res.data),
+    getOne: (id: string) => apiClient.get(`/forums/${id}`).then((res) => res.data),
+    create: (data: { title: string, description?: string }) => apiClient.post('/forums', data).then((res) => res.data),
+    createPost: (forumId: string, content: string) => apiClient.post(`/forums/${forumId}/posts`, { content }).then((res) => res.data),
+    deletePost: (id: string) => apiClient.delete(`/forums/posts/${id}`).then((res) => res.data),
+  },
+  programs: {
+    getAll: () => apiClient.get('/programs').then((res) => res.data),
+    getOne: (id: string) => apiClient.get(`/programs/${id}`).then((res) => res.data),
+    create: (data: { title: string, description?: string }) => apiClient.post('/programs', data).then((res) => res.data),
+    update: (id: string, data: any) => apiClient.patch(`/programs/${id}`, data).then((res) => res.data),
+    delete: (id: string) => apiClient.delete(`/programs/${id}`).then((res) => res.data),
   }
 };
