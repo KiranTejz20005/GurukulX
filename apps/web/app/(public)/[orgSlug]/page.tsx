@@ -24,7 +24,9 @@ export default function AcademyHomePage({ params }: { params: Promise<{ orgSlug:
       })
   }, [])
 
-  const formattedOrgName = (orgSlug || "Demo").replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+  const formattedOrgName = (!orgSlug || orgSlug.toLowerCase() === 'demo')
+    ? "GurukulX"
+    : orgSlug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 
   const filteredCourses = courses.filter(c => {
     if (!searchQuery.trim()) return true
@@ -93,7 +95,7 @@ export default function AcademyHomePage({ params }: { params: Promise<{ orgSlug:
               return (
                 <Link 
                   key={course.id} 
-                  href={`/${orgSlug}/course/${course.id}`} 
+                  href={`/${orgSlug}/course/${course.slug || course.id}`} 
                   className="group flex flex-col bg-card border border-border rounded-2xl overflow-hidden hover:shadow-xl hover:border-primary/50 transition-all duration-300 hover:-translate-y-1"
                 >
                   <div className="aspect-[16/9] relative overflow-hidden bg-muted">

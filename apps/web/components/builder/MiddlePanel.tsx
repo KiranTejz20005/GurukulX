@@ -140,7 +140,7 @@ export function MiddlePanel({
             size="sm"
             className="h-8 text-xs gap-1.5"
             onClick={() => {
-              const shareUrl = `${window.location.origin}/demo/course/${course?.id}`
+              const shareUrl = `${window.location.origin}/gurukulx/course/${course?.slug || course?.id}`
               navigator.clipboard.writeText(shareUrl)
               alert(`Course share link copied!\n${shareUrl}`)
             }}

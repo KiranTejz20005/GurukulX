@@ -96,39 +96,75 @@ export class CoursesService {
     });
   }
 
+  private slugify(text: string): string {
+    return (text || '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
   async findAll(workspaceId?: string) {
     const { workspaceId: resolvedWorkspaceId } = await this.ensureWorkspaceAndUser(workspaceId);
 
-    return this.prisma.course.findMany({
+    const courses = await this.prisma.course.findMany({
       where: { workspaceId: resolvedWorkspaceId },
       include: {
         modules: {
           include: {
             lessons: true,
           },
+          orderBy: { order: 'asc' },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    return courses.map((course) => ({
+      ...course,
+      slug: this.slugify(course.title) || course.id,
+    }));
   }
 
-  async findOne(id: string, workspaceId?: string) {
-    const course = await this.prisma.course.findFirst({
-      where: { id },
+  async findOne(idOrSlug: string, workspaceId?: string) {
+    let course = await this.prisma.course.findFirst({
+      where: { id: idOrSlug },
       include: {
         modules: {
           include: {
             lessons: true,
           },
+          orderBy: { order: 'asc' },
         },
       },
     });
 
     if (!course) {
-      throw new NotFoundException(`Course with ID ${id} not found`);
+      const allCourses = await this.prisma.course.findMany({
+        include: {
+          modules: {
+            include: {
+              lessons: true,
+            },
+            orderBy: { order: 'asc' },
+          },
+        },
+      });
+
+      course = allCourses.find(
+        (c) => this.slugify(c.title) === idOrSlug.toLowerCase() || c.id === idOrSlug
+      ) || null;
     }
 
-    return course;
+    if (!course) {
+      throw new NotFoundException(`Course with ID or Slug "${idOrSlug}" not found`);
+    }
+
+    return {
+      ...course,
+      slug: this.slugify(course.title) || course.id,
+    };
   }
 
   async update(id: string, workspaceId: string, updateCourseDto: UpdateCourseDto) {

@@ -4,6 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ChevronLeft, Settings, Users, PenTool, LayoutDashboard, Share2, Copy, Check, ExternalLink, X } from "lucide-react"
+import { api } from "@/lib/api"
 
 export default function CourseLayout({ children, params }: { children: React.ReactNode, params: Promise<{ courseId: string }> }) {
   const { courseId } = React.use(params)
@@ -11,12 +12,20 @@ export default function CourseLayout({ children, params }: { children: React.Rea
   
   const [showShareModal, setShowShareModal] = React.useState(false)
   const [copied, setCopied] = React.useState(false)
-  const [publicShareUrl, setPublicShareUrl] = React.useState(`http://localhost:3000/demo/course/${courseId}`)
+  const [publicShareUrl, setPublicShareUrl] = React.useState(`http://localhost:3000/gurukulx/course/${courseId}`)
 
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setPublicShareUrl(`${window.location.origin}/demo/course/${courseId}`)
-    }
+    api.courses.getOne(courseId)
+      .then((course: any) => {
+        const slug = course?.slug || courseId
+        const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
+        setPublicShareUrl(`${origin}/gurukulx/course/${slug}`)
+      })
+      .catch(() => {
+        if (typeof window !== 'undefined') {
+          setPublicShareUrl(`${window.location.origin}/gurukulx/course/${courseId}`)
+        }
+      })
   }, [courseId])
 
   const handleCopyLink = () => {

@@ -9,6 +9,10 @@ export default async function PublicAcademyLayout({
   params: Promise<{ orgSlug: string }>
 }) {
   const { orgSlug } = await params
+  const brandName = (!orgSlug || orgSlug.toLowerCase() === 'demo') 
+    ? 'GurukulX' 
+    : orgSlug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+
   return (
     <div className="min-h-screen bg-background flex flex-col font-sans">
       {/* Public Header / Nav */}
@@ -16,9 +20,9 @@ export default async function PublicAcademyLayout({
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
           <Link href={`/${orgSlug}`} className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-bold">
-              {orgSlug.charAt(0).toUpperCase()}
+              {brandName.charAt(0).toUpperCase()}
             </div>
-            {orgSlug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+            {brandName}
           </Link>
           
           <nav className="hidden md:flex items-center gap-6">
@@ -45,7 +49,7 @@ export default async function PublicAcademyLayout({
       {/* Public Footer */}
       <footer className="border-t border-border bg-card py-12">
         <div className="max-w-7xl mx-auto px-4 md:px-6 text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} {orgSlug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}. Powered by GurukulX.
+          © {new Date().getFullYear()} {brandName}. Powered by GurukulX.
         </div>
       </footer>
     </div>

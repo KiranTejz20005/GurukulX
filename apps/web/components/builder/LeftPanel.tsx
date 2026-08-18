@@ -32,13 +32,14 @@ export function LeftPanel({
   const [courseDesc, setCourseDesc] = useState(course?.description || "")
   const [isSavingCourse, setIsSavingCourse] = useState(false)
   const [courseSaveSuccess, setCourseSaveSuccess] = useState(false)
-  const [shareUrl, setShareUrl] = useState(`http://localhost:3000/demo/course/${course?.id || ""}`)
+  const targetSlug = course?.slug || course?.id || ""
+  const [shareUrl, setShareUrl] = useState(`http://localhost:3000/gurukulx/course/${targetSlug}`)
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && course?.id) {
-      setShareUrl(`${window.location.origin}/demo/course/${course.id}`)
+    if (typeof window !== 'undefined' && targetSlug) {
+      setShareUrl(`${window.location.origin}/gurukulx/course/${targetSlug}`)
     }
-  }, [course?.id])
+  }, [targetSlug])
 
   useEffect(() => {
     if (course?.modules) {
@@ -456,7 +457,7 @@ export function LeftPanel({
                 </button>
 
                 <a
-                  href={`/demo/course/${course?.id}`}
+                  href={`/gurukulx/course/${course?.slug || course?.id}`}
                   target="_blank"
                   rel="noreferrer"
                   className="p-2 rounded-lg border border-border hover:bg-accent text-foreground transition-colors flex items-center justify-center"
