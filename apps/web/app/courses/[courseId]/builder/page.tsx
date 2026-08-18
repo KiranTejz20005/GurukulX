@@ -55,7 +55,14 @@ export default function CourseBuilderPage() {
         activeLessonId={activeLessonId}
         onUpdate={fetchCourse} 
       />
-      <RightPanel />
+      <RightPanel 
+        course={course}
+        activeModuleId={activeModuleId}
+        setActiveModuleId={setActiveModuleId}
+        activeLessonId={activeLessonId}
+        setActiveLessonId={setActiveLessonId}
+        onUpdate={fetchCourse}
+      />
     </div>
   )
 }

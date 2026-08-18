@@ -24,6 +24,7 @@ export const api = {
     create: (courseId: string, data: { title: string }) => apiClient.post(`/courses/${courseId}/modules`, data).then((res) => res.data),
     getAll: (courseId: string) => apiClient.get(`/courses/${courseId}/modules`).then((res) => res.data),
     update: (courseId: string, moduleId: string, data: any) => apiClient.patch(`/courses/${courseId}/modules/${moduleId}`, data).then((res) => res.data),
+    reorder: (courseId: string, moduleId: string, order: number) => apiClient.patch(`/courses/${courseId}/modules/${moduleId}/reorder`, { order }).then((res) => res.data),
     delete: (courseId: string, moduleId: string) => apiClient.delete(`/courses/${courseId}/modules/${moduleId}`).then((res) => res.data),
   },
   lessons: {
