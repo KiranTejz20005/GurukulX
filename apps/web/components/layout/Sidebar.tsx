@@ -12,6 +12,7 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
+  SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
@@ -68,7 +69,6 @@ const NAV_GROUPS = [
     ]
   },
   {
-    title: "Settings",
     items: [
       { 
         label: "Settings", 
@@ -98,19 +98,29 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
 
       <SidebarContent>
-        {NAV_GROUPS.map((group) => (
-          <SidebarGroup key={group.title}>
-            <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
+        {NAV_GROUPS.map((group, groupIdx) => {
+          const menuContent = (
             <SidebarMenu>
               {group.items.map((item) => {
-                const isActive = pathname === item.href || (pathname !== "/" && item.href !== "/" && pathname.startsWith(item.href))
-                
+                const isActive =
+                  pathname === item.href ||
+                  (pathname !== "/" &&
+                    item.href !== "/" &&
+                    pathname.startsWith(item.href))
+
                 if (item.subItems) {
                   return (
-                    <Collapsible key={item.href} defaultOpen={isActive} className="group/collapsible">
+                    <Collapsible
+                      key={item.href}
+                      defaultOpen={isActive}
+                      className="group/collapsible"
+                    >
                       <SidebarMenuItem>
                         <CollapsibleTrigger asChild>
-                          <SidebarMenuButton tooltip={item.label} isActive={isActive}>
+                          <SidebarMenuButton
+                            tooltip={item.label}
+                            isActive={isActive}
+                          >
                             <item.icon />
                             <span>{item.label}</span>
                             <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -120,7 +130,10 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                           <SidebarMenuSub>
                             {item.subItems.map((sub) => (
                               <SidebarMenuSubItem key={sub.href}>
-                                <SidebarMenuSubButton asChild isActive={pathname === sub.href}>
+                                <SidebarMenuSubButton
+                                  asChild
+                                  isActive={pathname === sub.href}
+                                >
                                   <Link href={sub.href}>
                                     <span>{sub.label}</span>
                                   </Link>
@@ -136,7 +149,11 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 
                 return (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild tooltip={item.label} isActive={isActive}>
+                    <SidebarMenuButton
+                      asChild
+                      tooltip={item.label}
+                      isActive={isActive}
+                    >
                       <Link href={item.href}>
                         <item.icon />
                         <span>{item.label}</span>
@@ -146,8 +163,38 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                 )
               })}
             </SidebarMenu>
-          </SidebarGroup>
-        ))}
+          )
+
+          if (!group.title) {
+            return (
+              <SidebarGroup key={groupIdx}>
+                <SidebarGroupContent>{menuContent}</SidebarGroupContent>
+              </SidebarGroup>
+            )
+          }
+
+          return (
+            <Collapsible
+              key={group.title}
+              defaultOpen
+              className="group/collapsible-group"
+            >
+              <SidebarGroup>
+                <SidebarGroupLabel asChild>
+                  <CollapsibleTrigger className="flex w-full items-center justify-between hover:bg-sidebar-accent hover:text-sidebar-accent-foreground px-2 py-1.5 rounded-md transition-colors cursor-pointer select-none group/trigger text-sidebar-foreground/70">
+                    <span className="font-semibold text-xs tracking-wider uppercase">
+                      {group.title}
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=closed]/collapsible-group:-rotate-90 group-hover/trigger:text-sidebar-accent-foreground" />
+                  </CollapsibleTrigger>
+                </SidebarGroupLabel>
+                <CollapsibleContent>
+                  <SidebarGroupContent>{menuContent}</SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
+          )
+        })}
       </SidebarContent>
 
       <SidebarFooter>
