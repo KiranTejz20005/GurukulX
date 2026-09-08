@@ -10,11 +10,14 @@ import { MediaModule } from './media/media.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { ForumsModule } from './forums/forums.module';
+import { StatsModule } from './stats/stats.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
     PrismaModule,
     AuthModule,
+    NotificationsModule,
     ForumsModule,
     CoursesModule,
     ModulesModule,
@@ -22,6 +25,7 @@ import { ForumsModule } from './forums/forums.module';
     ProgramsModule,
     WorkspacesModule,
     MediaModule,
+    StatsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

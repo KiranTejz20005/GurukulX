@@ -31,12 +31,14 @@ export class ForumsController {
   @Post(':id/posts')
   createPost(
     @Param('id') forumId: string,
-    @Body() body: { userId: string; content: string }
+    @Body() body: { userId: string; content: string },
+    @Headers('x-workspace-id') workspaceId?: string,
   ) {
     return this.forumsService.createPost({
       forumId,
       userId: body.userId || 'student-demo',
       content: body.content,
+      workspaceId,
     });
   }
 

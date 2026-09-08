@@ -33,13 +33,14 @@ model Workspace {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  members     WorkspaceMember[]
-  courses     Course[]
-  forums      Forum[]
-  programs    Program[]
-  tags        Tag[]
-  media       Media[]
-  apiKeys     ApiKey[]
+  members       WorkspaceMember[]
+  courses       Course[]
+  forums        Forum[]
+  programs      Program[]
+  tags          Tag[]
+  media         Media[]
+  apiKeys       ApiKey[]
+  notifications Notification[]
 }
 
 model WorkspaceMember {
@@ -252,6 +253,22 @@ model ApiKey {
   key         String   @unique
   createdAt   DateTime @default(now())
   lastUsedAt  DateTime?
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  workspaceId String
+  type        String   // ENROLLMENT | COURSE_PUBLISHED | COURSE_CREATED | QUIZ_ATTEMPT | SUBMISSION | FORUM_POST | API_KEY | MEMBER_JOINED | AI_COMPLETE | SYSTEM
+  title       String
+  message     String
+  read        Boolean  @default(false)
+  link        String?
+  actorName   String?
+  actorEmail  String?
+  metadata    String?  // JSON string for extra context
+  createdAt   DateTime @default(now())
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
 }
