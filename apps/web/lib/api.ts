@@ -46,5 +46,16 @@ export const api = {
     create: (data: { title: string, description?: string }) => apiClient.post('/programs', data).then((res) => res.data),
     update: (id: string, data: any) => apiClient.patch(`/programs/${id}`, data).then((res) => res.data),
     delete: (id: string) => apiClient.delete(`/programs/${id}`).then((res) => res.data),
-  }
+  },
+  stats: {
+    getAnalytics: () => apiClient.get('/stats/analytics').then((res) => res.data),
+    getCompliance: () => apiClient.get('/stats/compliance').then((res) => res.data),
+  },
+  notifications: {
+    getAll: () => apiClient.get('/notifications').then((res) => res.data),
+    markOneRead: (id: string) => apiClient.patch(`/notifications/${id}/read`).then((res) => res.data),
+    markAllRead: () => apiClient.patch('/notifications/mark-all-read').then((res) => res.data),
+    deleteOne: (id: string) => apiClient.delete(`/notifications/${id}`).then((res) => res.data),
+    clearAll: () => apiClient.delete('/notifications/clear-all').then((res) => res.data),
+  },
 };
