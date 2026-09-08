@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation"
 import { 
   Home, LayoutDashboard, BarChart2, Settings as SettingsIcon, BookOpen, Layers, ImageIcon, Tags, Grid, MessageSquare, Users, Zap, ChevronDown, ChevronRight, Code, Workflow 
 } from "lucide-react"
+import { EarlyAdopterCard } from "@/components/layout/EarlyAdopterCard"
+import { UserNavPopover } from "@/components/layout/UserNavPopover"
 
 import {
   Sidebar,
@@ -93,7 +95,12 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center text-[11px] font-bold text-white">
             <span className="w-3 h-3 bg-white rounded-sm" />
           </div>
-          <span className="font-semibold text-sm truncate group-data-[collapsible=icon]:hidden">GurukulX</span>
+          <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+            <span className="font-semibold text-sm truncate text-foreground">GurukulX</span>
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border/80">
+              Free
+            </span>
+          </div>
         </div>
       </SidebarHeader>
 
@@ -197,15 +204,10 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         })}
       </SidebarContent>
 
-      <SidebarFooter>
-        <div className="p-2">
-          <button className="flex items-center gap-3 w-full hover:bg-sidebar-accent p-2 rounded-lg transition-colors text-left">
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Kiran" alt="Avatar" className="w-8 h-8 rounded-full bg-zinc-800 border flex-shrink-0" />
-            <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
-              <p className="text-sm font-medium truncate">Kiran Teja</p>
-              <p className="text-xs text-muted-foreground truncate">Admin</p>
-            </div>
-          </button>
+      <SidebarFooter className="p-0 gap-1 border-t border-border/40">
+        <EarlyAdopterCard />
+        <div className="px-2 pb-2">
+          <UserNavPopover />
         </div>
       </SidebarFooter>
       <SidebarRail />
