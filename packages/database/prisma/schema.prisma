@@ -291,7 +291,6 @@ model ApiKey {
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
 }
 
-<<<<<<< HEAD
 model AnalyticsPageEvent {
   id          String   @id @default(cuid())
   workspaceId String

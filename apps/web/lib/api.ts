@@ -47,7 +47,6 @@ export const api = {
     update: (id: string, data: any) => apiClient.patch(`/programs/${id}`, data).then((res) => res.data),
     delete: (id: string) => apiClient.delete(`/programs/${id}`).then((res) => res.data),
   },
-<<<<<<< HEAD
   analytics: {
     getLandingStats: (days: number = 30) => apiClient.get(`/analytics/landing-stats?days=${days}`).then((res) => res.data),
     getCourseFunnel: (days: number = 30, courseId?: string) =>
