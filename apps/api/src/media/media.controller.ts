@@ -1,34 +1,60 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, Headers, Request } from '@nestjs/common';
 import { MediaService } from './media.service';
-import { CreateMediaDto } from './dto/create-media.dto';
-import { UpdateMediaDto } from './dto/update-media.dto';
 
 @Controller('media')
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
 
-  @Post()
-  create(@Body() createMediaDto: CreateMediaDto) {
-    return this.mediaService.create(createMediaDto);
+  private resolveWorkspaceId(headers: Record<string, string>, req: any): string {
+    return headers['x-workspace-id'] || req.user?.workspaceId || 'dev-workspace-123';
   }
 
   @Get()
-  findAll() {
-    return this.mediaService.findAll();
+  findAll(
+    @Headers() headers: Record<string, string>,
+    @Request() req: any,
+    @Query('type') type?: string,
+  ) {
+    const workspaceId = this.resolveWorkspaceId(headers, req);
+    return this.mediaService.findAll(workspaceId, type);
+  }
+
+  @Get('storage')
+  getStorage(
+    @Headers() headers: Record<string, string>,
+    @Request() req: any,
+  ) {
+    const workspaceId = this.resolveWorkspaceId(headers, req);
+    return this.mediaService.getStorageStats(workspaceId);
+  }
+
+  @Post()
+  create(
+    @Headers() headers: Record<string, string>,
+    @Request() req: any,
+    @Body() body: { filename: string; url: string; mimeType: string; size: number },
+  ) {
+    const workspaceId = this.resolveWorkspaceId(headers, req);
+    return this.mediaService.create(workspaceId, body);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.mediaService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateMediaDto: UpdateMediaDto) {
-    return this.mediaService.update(+id, updateMediaDto);
+  findOne(
+    @Headers() headers: Record<string, string>,
+    @Request() req: any,
+    @Param('id') id: string,
+  ) {
+    const workspaceId = this.resolveWorkspaceId(headers, req);
+    return this.mediaService.findOne(id, workspaceId);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.mediaService.remove(+id);
+  remove(
+    @Headers() headers: Record<string, string>,
+    @Request() req: any,
+    @Param('id') id: string,
+  ) {
+    const workspaceId = this.resolveWorkspaceId(headers, req);
+    return this.mediaService.remove(id, workspaceId);
   }
 }

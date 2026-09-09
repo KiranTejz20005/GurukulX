@@ -16,12 +16,14 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  workspaces    WorkspaceMember[]
-  courses       Course[]          @relation("CourseInstructor")
-  enrollments   Enrollment[]
-  submissions   Submission[]
-  quizAttempts  QuizAttempt[]
-  forumPosts    ForumPost[]
+  workspaces        WorkspaceMember[]
+  courses           Course[]          @relation("CourseInstructor")
+  enrollments       Enrollment[]
+  submissions       Submission[]
+  quizAttempts      QuizAttempt[]
+  forumPosts        ForumPost[]
+  completionRecords CourseCompletionRecord[]
+  certificates      Certificate[]
 }
 
 model Workspace {
@@ -33,13 +35,20 @@ model Workspace {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  members     WorkspaceMember[]
-  courses     Course[]
-  forums      Forum[]
-  programs    Program[]
-  tags        Tag[]
-  media       Media[]
-  apiKeys     ApiKey[]
+  members               WorkspaceMember[]
+  courses               Course[]
+  forums                Forum[]
+  programs              Program[]
+  tags                  Tag[]
+  tagGroups             TagGroup[]
+  media                 Media[]
+  apiKeys               ApiKey[]
+  analyticsEvents       AnalyticsPageEvent[]
+  analyticsOrgDaily     AnalyticsOrgDaily[]
+  analyticsCountryDaily AnalyticsCountryDaily[]
+  certificates          Certificate[]
+  invites               WorkspaceInvite[]
+  widgets               Widget[]
 }
 
 model WorkspaceMember {
@@ -56,22 +65,29 @@ model WorkspaceMember {
 }
 
 model Course {
-  id          String    @id @default(cuid())
-  workspaceId String
-  instructorId String
-  title       String
-  description String?
-  published   Boolean   @default(false)
-  thumbnail   String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  workspaceId     String
+  instructorId    String
+  title           String
+  description     String?
+  type            String    @default("SELF_PACED") // "SELF_PACED", "LIVE_CLASS", "COMPLIANCE"
+  validityMonths  Int?      @default(12)
+  gracePeriodDays Int?      @default(14)
+  published       Boolean   @default(false)
+  thumbnail       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  instructor  User      @relation("CourseInstructor", fields: [instructorId], references: [id])
-  modules     Module[]
-  enrollments Enrollment[]
-  tags        CourseTag[]
-  programs    ProgramCourse[]
+  workspace            Workspace                @relation(fields: [workspaceId], references: [id])
+  instructor           User                     @relation("CourseInstructor", fields: [instructorId], references: [id])
+  modules              Module[]
+  enrollments          Enrollment[]
+  tags                 CourseTag[]
+  programs             ProgramCourse[]
+  analyticsCourseDaily AnalyticsCourseDaily[]
+  completionRecords    CourseCompletionRecord[]
+  certificates         Certificate[]
+  widgets              WidgetCourse[]
 }
 
 model Enrollment {
@@ -79,6 +95,8 @@ model Enrollment {
   courseId    String
   userId      String
   enrolledAt  DateTime  @default(now())
+  progress    Int       @default(0)
+  completedAt DateTime?
 
   course      Course    @relation(fields: [courseId], references: [id])
   user        User      @relation(fields: [userId], references: [id])
@@ -213,13 +231,29 @@ model ProgramCourse {
   @@unique([programId, courseId])
 }
 
-model Tag {
+model TagGroup {
   id          String   @id @default(cuid())
   workspaceId String
   name        String
+  description String?
+  selectionMode String @default("SINGLE") // SINGLE, MULTI
+  createdAt   DateTime @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tags        Tag[]
+}
+
+model Tag {
+  id          String    @id @default(cuid())
+  workspaceId String
+  groupId     String?
+  name        String
   color       String?
+  description String?
+  createdAt   DateTime  @default(now())
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  group       TagGroup? @relation(fields: [groupId], references: [id])
   courses     CourseTag[]
 }
 
@@ -255,3 +289,147 @@ model ApiKey {
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
 }
+
+model AnalyticsPageEvent {
+  id          String   @id @default(cuid())
+  workspaceId String
+  courseId    String?
+  userId      String?
+  eventType   String   // "landing_view", "course_page_view", "enrollment_completed", "course_completed"
+  country     String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, eventType, createdAt])
+}
+
+model AnalyticsOrgDaily {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  date            String   // YYYY-MM-DD
+  landingViews    Int      @default(0)
+  coursePageViews Int      @default(0)
+  uniqueVisitors  Int      @default(0)
+  enrollments     Int      @default(0)
+  completions     Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, date])
+}
+
+model AnalyticsCourseDaily {
+  id          String   @id @default(cuid())
+  workspaceId String
+  courseId    String
+  date        String   // YYYY-MM-DD
+  views       Int      @default(0)
+  enrollments Int      @default(0)
+  completions Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, date])
+}
+
+model AnalyticsCountryDaily {
+  id          String   @id @default(cuid())
+  workspaceId String
+  date        String   // YYYY-MM-DD
+  country     String
+  views       Int      @default(0)
+  enrollments Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, date, country])
+}
+
+model CourseCompletionRecord {
+  id           String    @id @default(cuid())
+  courseId     String
+  userId       String
+  status       String    // "compliant", "non_compliant", "expiring_soon", "in_grace_period", "in_progress", "not_started", "waived"
+  completedAt  DateTime?
+  validUntil   DateTime?
+  cycleNumber  Int       @default(1)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  course       Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, userId, cycleNumber])
+}
+
+model Certificate {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  userId          String
+  courseId        String
+  certificateNumber String @unique
+  issuedAt        DateTime @default(now())
+  expiresAt       DateTime?
+  status          String   @default("ACTIVE") // ACTIVE, EXPIRED, REVOKED
+
+  user            User      @relation(fields: [userId], references: [id])
+  course          Course    @relation(fields: [courseId], references: [id])
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, courseId, userId])
+}
+
+model Widget {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  theme       String   @default("dark") // dark, light, system
+  layout      String   @default("grid") // grid, list, carousel
+  primaryColor String  @default("#3b82f6")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  courses     WidgetCourse[]
+  versions    WidgetVersion[]
+}
+
+model WidgetCourse {
+  widgetId    String
+  courseId    String
+  order       Int      @default(0)
+
+  widget      Widget   @relation(fields: [widgetId], references: [id], onDelete: Cascade)
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([widgetId, courseId])
+}
+
+model WidgetVersion {
+  id          String   @id @default(cuid())
+  widgetId    String
+  version     Int
+  config      String   // JSON configuration snapshot
+  createdAt   DateTime @default(now())
+
+  widget      Widget   @relation(fields: [widgetId], references: [id], onDelete: Cascade)
+}
+
+model WorkspaceInvite {
+  id          String   @id @default(cuid())
+  workspaceId String
+  email       String
+  role        String   @default("STUDENT")
+  token       String   @unique
+  status      String   @default("PENDING") // PENDING, ACCEPTED, REVOKED, EXPIRED
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
