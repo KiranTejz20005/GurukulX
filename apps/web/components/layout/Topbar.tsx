@@ -9,6 +9,22 @@ import { NotificationsPopover } from "@/components/layout/NotificationsPopover"
 export function Topbar() {
   const [commandOpen, setCommandOpen] = React.useState(false)
   const [isMac, setIsMac] = React.useState(false)
+  const [workspace, setWorkspace] = React.useState<{ name: string; slug: string } | null>(null)
+  const [setupPercentage, setSetupPercentage] = React.useState<number>(17)
+
+  // Fetch current workspace and onboarding percentage
+  React.useEffect(() => {
+    import("@/lib/api").then(({ api }) => {
+      api.workspaces.getSetupProgress()
+        .then((data) => {
+          if (data?.percentage !== undefined) setSetupPercentage(data.percentage)
+          if (data?.workspace) setWorkspace(data.workspace)
+        })
+        .catch(() => {
+          setWorkspace({ name: "St. Peter's Engineering College", slug: "st-peters" })
+        })
+    })
+  }, [])
 
   // Detect OS for shortcut display & set up global keyboard shortcut
   React.useEffect(() => {
@@ -36,6 +52,11 @@ export function Topbar() {
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [])
 
+  const orgName = workspace?.name || "St.Peter's Engineering College"
+  const orgInitials = orgName.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "ST"
+  const orgSlug = workspace?.slug || "st-peters"
+  const academyUrl = `/${orgSlug}`
+
   return (
     <>
       <header className="h-14 bg-background/95 backdrop-blur-md border-b border-border flex items-center justify-between px-6 shrink-0 sticky top-0 z-40">
@@ -44,10 +65,10 @@ export function Topbar() {
           <SidebarTrigger className="-ml-2" />
           <div className="flex items-center gap-2.5 text-muted-foreground">
             <div className="w-6 h-6 rounded bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold border border-primary/20">
-              ST
+              {orgInitials}
             </div>
             <span className="font-semibold text-foreground text-sm tracking-tight">
-              St.Peter&apos;s Engineering College
+              {orgName}
             </span>
           </div>
         </div>
@@ -56,17 +77,24 @@ export function Topbar() {
         <div className="flex items-center gap-3">
           {/* Progress & Quick Links */}
           <div className="hidden md:flex items-center gap-3 pr-3 border-r border-border">
-            <div className="w-7 h-7 rounded-full border-2 border-primary/30 flex items-center justify-center bg-primary/5">
-              <span className="text-[10px] font-bold text-primary">17%</span>
-            </div>
             <a
-              href="/"
+              href="/setup"
+              title="Click to view setup checklist"
+              className="flex items-center gap-2 group cursor-pointer"
+            >
+              <div className="w-7 h-7 rounded-full border-2 border-primary/30 flex items-center justify-center bg-primary/5 group-hover:border-primary/60 transition-colors">
+                <span className="text-[10px] font-bold text-primary">{setupPercentage}%</span>
+              </div>
+            </a>
+            <a
+              href={academyUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
+              title={`Open ${orgName} public learning academy`}
+              className="text-xs font-semibold text-foreground hover:text-primary transition-colors flex items-center gap-1.5 px-2.5 py-1 rounded-md hover:bg-muted"
             >
               <span>Open Academy</span>
-              <ExternalLink className="w-3.5 h-3.5" />
+              <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
             </a>
           </div>
 
