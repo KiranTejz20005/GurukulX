@@ -10,6 +10,8 @@ import { MediaModule } from './media/media.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { ForumsModule } from './forums/forums.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { StatsModule } from './stats/stats.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ComplianceModule } from './compliance/compliance.module';
 import { DashModule } from './dash/dash.module';
@@ -21,6 +23,7 @@ import { WidgetsModule } from './widgets/widgets.module';
   imports: [
     PrismaModule,
     AuthModule,
+    NotificationsModule,
     ForumsModule,
     CoursesModule,
     ModulesModule,
@@ -28,6 +31,7 @@ import { WidgetsModule } from './widgets/widgets.module';
     ProgramsModule,
     WorkspacesModule,
     MediaModule,
+    StatsModule,
     AnalyticsModule,
     ComplianceModule,
     DashModule,

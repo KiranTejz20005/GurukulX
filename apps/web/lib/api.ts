@@ -47,6 +47,7 @@ export const api = {
     update: (id: string, data: any) => apiClient.patch(`/programs/${id}`, data).then((res) => res.data),
     delete: (id: string) => apiClient.delete(`/programs/${id}`).then((res) => res.data),
   },
+<<<<<<< HEAD
   analytics: {
     getLandingStats: (days: number = 30) => apiClient.get(`/analytics/landing-stats?days=${days}`).then((res) => res.data),
     getCourseFunnel: (days: number = 30, courseId?: string) =>
@@ -128,5 +129,16 @@ export const api = {
       apiClient.put(`/widgets/${id}`, data).then((res) => res.data),
     delete: (id: string) => apiClient.delete(`/widgets/${id}`).then((res) => res.data),
     getPublicEmbed: (id: string) => apiClient.get(`/widgets/embed/${id}`).then((res) => res.data),
+  },
+  stats: {
+    getAnalytics: () => apiClient.get('/stats/analytics').then((res) => res.data),
+    getCompliance: () => apiClient.get('/stats/compliance').then((res) => res.data),
+  },
+  notifications: {
+    getAll: () => apiClient.get('/notifications').then((res) => res.data),
+    markOneRead: (id: string) => apiClient.patch(`/notifications/${id}/read`).then((res) => res.data),
+    markAllRead: () => apiClient.patch('/notifications/mark-all-read').then((res) => res.data),
+    deleteOne: (id: string) => apiClient.delete(`/notifications/${id}`).then((res) => res.data),
+    clearAll: () => apiClient.delete('/notifications/clear-all').then((res) => res.data),
   },
 };
