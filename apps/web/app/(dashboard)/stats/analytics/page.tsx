@@ -1,603 +1,603 @@
 "use client"
 
-import * as React from "react"
+import React, { useState, useEffect, useId } from "react"
 import Link from "next/link"
-import {
-  Users,
-  BookOpen,
-  CheckCircle2,
-  TrendingUp,
-  RefreshCw,
-  Download,
-  Search,
-  ArrowUpRight,
+import { 
+  Eye, 
+  BookOpen, 
+  Users, 
+  UserPlus, 
+  CheckCircle2, 
+  TrendingUp, 
+  RefreshCw, 
+  Globe, 
+  Award, 
+  ArrowUpRight, 
+  BarChart3, 
+  Layers, 
   Sparkles,
-  Award,
-  Layers,
-  GraduationCap,
-  Clock,
-  ArrowRight,
-  FileCheck2,
-  AlertCircle
+  Calendar
 } from "lucide-react"
 import { api } from "@/lib/api"
-import { cn } from "@/lib/utils"
 
-interface AnalyticsData {
-  summary: {
-    totalCourses: number
-    publishedCourses: number
-    totalLearners: number
-    totalEnrollments: number
-    totalLessons: number
-    totalCompletedLessons: number
-    overallCompletionRate: number
-    averageQuizScore: number
-    quizPassRate: number
-    totalSubmissions: number
-    activeLearnersLast7Days: number
-  }
-  coursesBreakdown: Array<{
-    id: string
-    title: string
-    description: string | null
-    published: boolean
-    instructorName: string
-    enrollmentsCount: number
-    modulesCount: number
-    lessonsCount: number
-    completedLearnersCount: number
-    inProgressLearnersCount: number
-    completionRate: number
-    averageQuizScore: number
-    createdAt: string
-  }>
-  activityTimeline: Array<{
-    date: string
-    enrollments: number
-    completions: number
-    quizAttempts: number
-  }>
-  recentActivity: Array<{
-    id: string
-    type: "ENROLLMENT" | "QUIZ_ATTEMPT" | "SUBMISSION"
-    user: string
-    email: string
-    courseTitle: string
-    timestamp: string
-    details: string
-  }>
+type TimeRange = 7 | 30 | 90
+
+interface LandingStatsTotals {
+  landingViews: number
+  coursePageViews: number
+  uniqueVisitors: number
+  enrollments: number
+  completions: number
+  conversionRate: number
+}
+
+interface SparklineItem {
+  date: string
+  views: number
+  enrollments: number
+  uniqueVisitors: number
+  completions: number
+}
+
+interface FunnelStep {
+  name: string
+  count: number
+  conversionFromPrev: number | null
+}
+
+interface CountryItem {
+  country: string
+  views: number
+  enrollments: number
+  sharePercentage: number
+}
+
+interface TopCourseItem {
+  id: string
+  title: string
+  type: string
+  published: boolean
+  views: number
+  enrollments: number
+  completions: number
+  completionRate: number
+}
+
+const COUNTRY_FLAGS: Record<string, string> = {
+  "United States": "🇺🇸",
+  "India": "🇮🇳",
+  "United Kingdom": "🇬🇧",
+  "Germany": "🇩🇪",
+  "Canada": "🇨🇦",
+  "Australia": "🇦🇺",
+  "France": "🇫🇷",
+  "Japan": "🇯🇵",
+  "Brazil": "🇧🇷",
 }
 
 export default function AnalyticsPage() {
-  const [data, setData] = React.useState<AnalyticsData | null>(null)
-  const [loading, setLoading] = React.useState(true)
-  const [refreshing, setRefreshing] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = React.useState("")
-  const [selectedRange, setSelectedRange] = React.useState<"7D" | "30D" | "90D" | "ALL">("30D")
-  const [lastUpdated, setLastUpdated] = React.useState<string>("")
+  const [range, setRange] = useState<TimeRange>(30)
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [activeTooltip, setActiveTooltip] = useState<SparklineItem | null>(null)
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null)
 
-  const fetchAnalytics = React.useCallback(async (isManual = false) => {
-    if (isManual) setRefreshing(true)
-    setError(null)
+  const [totals, setTotals] = useState<LandingStatsTotals>({
+    landingViews: 0,
+    coursePageViews: 0,
+    uniqueVisitors: 0,
+    enrollments: 0,
+    completions: 0,
+    conversionRate: 0,
+  })
+  const [sparkline, setSparkline] = useState<SparklineItem[]>([])
+  const [funnelSteps, setFunnelSteps] = useState<FunnelStep[]>([])
+  const [countries, setCountries] = useState<CountryItem[]>([])
+  const [topCourses, setTopCourses] = useState<TopCourseItem[]>([])
+
+  const chartGradientId = useId()
+
+  const loadData = async (selectedRange: TimeRange, isRefresh = false) => {
     try {
-      const res = await api.stats.getAnalytics()
-      setData(res)
-      setLastUpdated(new Date().toLocaleTimeString())
-    } catch (err: any) {
-      console.error("Failed to fetch analytics:", err)
-      setError("Failed to load analytics data from server. Please check your connection.")
+      if (isRefresh) setRefreshing(true)
+      else setLoading(true)
+
+      const [landingRes, funnelRes, countryRes, topRes] = await Promise.all([
+        api.analytics.getLandingStats(selectedRange),
+        api.analytics.getCourseFunnel(selectedRange),
+        api.analytics.getCountryBreakdown(selectedRange),
+        api.analytics.getTopCourses(selectedRange),
+      ])
+
+      if (landingRes) {
+        setTotals(landingRes.totals || {})
+        setSparkline(landingRes.sparkline || [])
+      }
+      if (funnelRes && funnelRes.steps) {
+        setFunnelSteps(funnelRes.steps)
+      }
+      if (Array.isArray(countryRes)) {
+        setCountries(countryRes)
+      }
+      if (Array.isArray(topRes)) {
+        setTopCourses(topRes)
+      }
+    } catch (err) {
+      console.error("Failed to load analytics data:", err)
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [])
-
-  React.useEffect(() => {
-    fetchAnalytics()
-  }, [fetchAnalytics])
-
-  // Filtered courses based on search
-  const filteredCourses = React.useMemo(() => {
-    if (!data?.coursesBreakdown) return []
-    if (!searchQuery.trim()) return data.coursesBreakdown
-
-    const q = searchQuery.toLowerCase()
-    return data.coursesBreakdown.filter(
-      (c) =>
-        c.title.toLowerCase().includes(q) ||
-        c.instructorName.toLowerCase().includes(q) ||
-        (c.description && c.description.toLowerCase().includes(q))
-    )
-  }, [data, searchQuery])
-
-  // CSV Export functionality
-  const handleExportCSV = () => {
-    if (!data?.coursesBreakdown || data.coursesBreakdown.length === 0) return
-
-    const headers = [
-      "Course Title",
-      "Instructor",
-      "Published",
-      "Enrolled Learners",
-      "Modules",
-      "Lessons",
-      "Completed Learners",
-      "In Progress",
-      "Completion Rate (%)",
-      "Avg Quiz Score (%)",
-    ]
-
-    const rows = data.coursesBreakdown.map((c) => [
-      `"${c.title.replace(/"/g, '""')}"`,
-      `"${c.instructorName.replace(/"/g, '""')}"`,
-      c.published ? "Yes" : "No",
-      c.enrollmentsCount,
-      c.modulesCount,
-      c.lessonsCount,
-      c.completedLearnersCount,
-      c.inProgressLearnersCount,
-      `${c.completionRate}%`,
-      `${c.averageQuizScore}%`,
-    ])
-
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n")
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement("a")
-    link.setAttribute("href", encodedUri)
-    link.setAttribute("download", `gurukulx_analytics_${new Date().toISOString().split("T")[0]}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
   }
 
-  if (loading && !data) {
-    return (
-      <div className="p-6 sm:p-8 max-w-[1400px] mx-auto space-y-8 animate-pulse text-muted-foreground">
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <div className="h-8 w-64 bg-muted/60 rounded-lg" />
-            <div className="h-4 w-96 bg-muted/40 rounded-md" />
-          </div>
-          <div className="h-10 w-28 bg-muted/60 rounded-lg" />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-32 bg-muted/30 border border-border/50 rounded-2xl p-5" />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 h-80 bg-muted/30 border border-border/50 rounded-2xl" />
-          <div className="h-80 bg-muted/30 border border-border/50 rounded-2xl" />
-        </div>
-      </div>
-    )
-  }
+  useEffect(() => {
+    loadData(range)
+  }, [range])
+
+  const maxViews = Math.max(...sparkline.map((s) => s.views), 10)
+  const maxEnrollments = Math.max(...sparkline.map((s) => s.enrollments), 5)
+
+  // Generate SVG path for trend chart
+  const chartWidth = 900
+  const chartHeight = 220
+  const paddingX = 20
+  const paddingY = 25
+
+  const points = sparkline.map((item, idx) => {
+    const x = paddingX + (idx / Math.max(sparkline.length - 1, 1)) * (chartWidth - paddingX * 2)
+    const y = chartHeight - paddingY - (item.views / maxViews) * (chartHeight - paddingY * 2)
+    return { x, y, item }
+  })
+
+  const pathD = points.length > 0
+    ? points.reduce((acc, pt, i) => `${acc} ${i === 0 ? "M" : "L"} ${pt.x},${pt.y}`, "")
+    : ""
+
+  const firstPoint = points[0]
+  const lastPoint = points[points.length - 1]
+  const areaD = (pathD && firstPoint && lastPoint)
+    ? `${pathD} L ${lastPoint.x},${chartHeight - paddingY} L ${firstPoint.x},${chartHeight - paddingY} Z`
+    : ""
 
   return (
-    <div className="p-6 sm:p-8 max-w-[1400px] mx-auto space-y-8 text-foreground">
-      {/* Header & Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="p-8 max-w-[1400px] mx-auto text-gray-200">
+      {/* Header Area */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <div className="flex items-center gap-2.5 mb-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-              Analytics & Insights
-            </h1>
-            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Live Sync
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-2xl font-bold text-white tracking-tight">Analytics Dashboard</h1>
+            <span className="px-2 py-0.5 text-xs font-semibold uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full">
+              Live
             </span>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Real-time learner engagement, course completion metrics, and assessment benchmarks.
+          <p className="text-sm text-gray-400">
+            Real-time learner traffic, conversion funnels, and geographic performance metrics.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Time Range Selector */}
-          <div className="flex items-center bg-muted/40 p-1 rounded-xl border border-border text-xs">
-            {(["7D", "30D", "90D", "ALL"] as const).map((range) => (
+        {/* Time Range & Refresh Controls */}
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex items-center bg-[#09090b] border border-white/10 rounded-lg p-1">
+            {([7, 30, 90] as TimeRange[]).map((r) => (
               <button
-                key={range}
-                onClick={() => setSelectedRange(range)}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg font-medium transition-all",
-                  selectedRange === range
-                    ? "bg-background text-foreground shadow-xs font-semibold"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
+                key={r}
+                onClick={() => setRange(r)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  range === r
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-gray-400 hover:text-gray-200"
+                }`}
               >
-                {range}
+                {r} Days
               </button>
             ))}
           </div>
 
-          {/* Refresh Button */}
           <button
-            onClick={() => fetchAnalytics(true)}
-            disabled={refreshing}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-foreground bg-muted/40 hover:bg-muted border border-border rounded-xl transition-colors disabled:opacity-50"
+            onClick={() => loadData(range, true)}
+            disabled={loading || refreshing}
+            className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-gray-300 bg-[#09090b] border border-white/10 rounded-lg hover:bg-white/5 transition-colors disabled:opacity-50"
+            title="Refresh analytics data"
           >
-            <RefreshCw className={cn("w-3.5 h-3.5", refreshing && "animate-spin text-primary")} />
-            <span>{refreshing ? "Refreshing..." : "Refresh"}</span>
-          </button>
-
-          {/* Export CSV Button */}
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-xl transition-all shadow-sm shadow-primary/20"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export CSV</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-blue-400" : ""}`} />
+            Refresh
           </button>
         </div>
       </div>
 
-      {lastUpdated && (
-        <div className="text-[11px] text-muted-foreground/70 -mt-5">
-          Last updated at {lastUpdated}
-        </div>
-      )}
-
-      {error && (
-        <div className="flex items-center justify-between p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-          <button
-            onClick={() => fetchAnalytics(true)}
-            className="text-xs font-semibold underline hover:no-underline"
-          >
-            Retry
-          </button>
-        </div>
-      )}
-
-      {/* Top 4 KPI Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Learners */}
-        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 shadow-xs transition-all hover:border-border">
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+        {/* 1. Landing Views */}
+        <div className="bg-[#09090b] border border-white/10 rounded-xl p-5 hover:border-white/20 transition-all">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Total Learners
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
-              <Users className="w-4 h-4" />
+            <span className="text-xs font-medium text-gray-400">Landing Views</span>
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <Eye className="w-4 h-4 text-blue-400" />
             </div>
           </div>
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-3xl font-bold tracking-tight text-foreground">
-              {data?.summary.totalLearners ?? 0}
-            </span>
-            <span className="text-xs font-medium text-emerald-400 flex items-center">
-              <TrendingUp className="w-3 h-3 mr-0.5 inline" />
-              Active
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {data?.summary.totalEnrollments ?? 0} total course enrollments
+          <p className="text-2xl font-bold text-white mb-1">
+            {loading ? "—" : totals.landingViews.toLocaleString()}
           </p>
+          <span className="text-[11px] text-gray-500">Public landing hits</span>
         </div>
 
-        {/* Completion Rate */}
-        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 shadow-xs transition-all hover:border-border">
+        {/* 2. Course Page Views */}
+        <div className="bg-[#09090b] border border-white/10 rounded-xl p-5 hover:border-white/20 transition-all">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Avg Completion Rate
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-              <CheckCircle2 className="w-4 h-4" />
+            <span className="text-xs font-medium text-gray-400">Course Views</span>
+            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+              <BookOpen className="w-4 h-4 text-indigo-400" />
             </div>
           </div>
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-3xl font-bold tracking-tight text-foreground">
-              {data?.summary.overallCompletionRate ?? 0}%
-            </span>
-            <span className="text-xs font-medium text-muted-foreground">overall</span>
-          </div>
-          <div className="w-full bg-muted/60 h-1.5 rounded-full overflow-hidden mt-2">
-            <div
-              className="bg-emerald-500 h-full rounded-full transition-all duration-500"
-              style={{ width: `${Math.min(100, data?.summary.overallCompletionRate ?? 0)}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Active Courses */}
-        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 shadow-xs transition-all hover:border-border">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Curriculum Courses
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-              <BookOpen className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-3xl font-bold tracking-tight text-foreground">
-              {data?.summary.totalCourses ?? 0}
-            </span>
-            <span className="text-xs font-medium text-purple-400">
-              {data?.summary.publishedCourses ?? 0} published
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {data?.summary.totalLessons ?? 0} total modular lessons
+          <p className="text-2xl font-bold text-white mb-1">
+            {loading ? "—" : totals.coursePageViews.toLocaleString()}
           </p>
+          <span className="text-[11px] text-gray-500">Curriculum previews</span>
         </div>
 
-        {/* Assessment Benchmark */}
-        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 shadow-xs transition-all hover:border-border">
+        {/* 3. Unique Visitors */}
+        <div className="bg-[#09090b] border border-white/10 rounded-xl p-5 hover:border-white/20 transition-all">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Assessment Pass Rate
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-              <Award className="w-4 h-4" />
+            <span className="text-xs font-medium text-gray-400">Unique Visitors</span>
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+              <Users className="w-4 h-4 text-cyan-400" />
             </div>
           </div>
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-3xl font-bold tracking-tight text-foreground">
-              {data?.summary.quizPassRate ?? 0}%
-            </span>
-            <span className="text-xs font-medium text-amber-400">
-              {data?.summary.averageQuizScore ?? 0}% avg
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {data?.summary.totalSubmissions ?? 0} projects submitted
+          <p className="text-2xl font-bold text-white mb-1">
+            {loading ? "—" : totals.uniqueVisitors.toLocaleString()}
           </p>
+          <span className="text-[11px] text-gray-500">Estimated learners</span>
+        </div>
+
+        {/* 4. Total Enrollments */}
+        <div className="bg-[#09090b] border border-white/10 rounded-xl p-5 hover:border-white/20 transition-all">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-gray-400">Enrollments</span>
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+              <UserPlus className="w-4 h-4 text-emerald-400" />
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-white mb-1">
+            {loading ? "—" : totals.enrollments.toLocaleString()}
+          </p>
+          <span className="text-[11px] text-gray-500">Active enrollments</span>
+        </div>
+
+        {/* 5. Course Completions */}
+        <div className="bg-[#09090b] border border-white/10 rounded-xl p-5 hover:border-white/20 transition-all">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-gray-400">Completions</span>
+            <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+              <CheckCircle2 className="w-4 h-4 text-purple-400" />
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-white mb-1">
+            {loading ? "—" : totals.completions.toLocaleString()}
+          </p>
+          <span className="text-[11px] text-gray-500">100% course completions</span>
+        </div>
+
+        {/* 6. Conversion Rate */}
+        <div className="bg-[#09090b] border border-white/10 rounded-xl p-5 hover:border-white/20 transition-all">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-gray-400">Conversion</span>
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 text-amber-400" />
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-white mb-1">
+            {loading ? "—" : `${totals.conversionRate}%`}
+          </p>
+          <span className="text-[11px] text-gray-500">Views to enrolled</span>
         </div>
       </div>
 
-      {/* Center Grid: Activity Timeline Chart & Engagement Highlights */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Activity Timeline Bar Chart */}
-        <div className="lg:col-span-2 rounded-2xl border border-border/80 bg-card p-6 shadow-xs flex flex-col justify-between">
+      {/* Traffic Trend Chart */}
+      <div className="bg-[#09090b] border border-white/10 rounded-xl p-6 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-base font-semibold text-foreground">
-                  Learner Activity & Completions
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                  Daily distribution of enrollments, lesson completions, and quiz submissions.
-                </p>
-              </div>
-              <div className="flex items-center gap-3 text-xs">
-                <span className="flex items-center gap-1.5 text-muted-foreground">
-                  <span className="w-2.5 h-2.5 rounded-full bg-primary" />
-                  Completions
-                </span>
-                <span className="flex items-center gap-1.5 text-muted-foreground">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                  Enrollments
-                </span>
-              </div>
+            <h2 className="text-base font-semibold text-white">Daily Traffic & Engagement</h2>
+            <p className="text-xs text-gray-400">Total views and student enrollments over the past {range} days.</p>
+          </div>
+          <div className="flex items-center gap-4 text-xs">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+              <span className="text-gray-300">Views</span>
             </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <span className="text-gray-300">Enrollments</span>
+            </div>
+          </div>
+        </div>
 
-            {/* Custom SVG / CSS Bar Visualization */}
-            <div className="h-56 w-full flex items-end justify-between gap-2 pt-8 pb-2 px-2">
-              {(data?.activityTimeline || []).map((item, idx) => {
-                const maxVal = 10
-                const completionHeight = Math.max(12, (item.completions / maxVal) * 160)
-                const enrollmentHeight = Math.max(8, (item.enrollments / maxVal) * 120)
+        {loading ? (
+          <div className="h-[220px] flex items-center justify-center text-sm text-gray-500">
+            <RefreshCw className="w-5 h-5 animate-spin mr-2 text-blue-500" />
+            Loading trend data...
+          </div>
+        ) : (
+          <div className="relative w-full overflow-hidden">
+            <svg
+              viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+              className="w-full h-[220px] overflow-visible"
+              preserveAspectRatio="none"
+            >
+              <defs>
+                <linearGradient id={chartGradientId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
+                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
 
+              {/* Grid Lines */}
+              {[0.25, 0.5, 0.75].map((factor, i) => {
+                const y = paddingY + factor * (chartHeight - paddingY * 2)
                 return (
-                  <div key={idx} className="flex-1 flex flex-col items-center gap-2 group h-full justify-end">
-                    <div className="w-full flex items-end justify-center gap-1.5 h-44">
-                      {/* Completion Bar */}
-                      <div
-                        className="w-3.5 sm:w-5 bg-primary/80 group-hover:bg-primary rounded-t-md transition-all relative"
-                        style={{ height: `${completionHeight}px` }}
-                      >
-                        <div className="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-popover text-popover-foreground text-[10px] font-semibold px-1.5 py-0.5 rounded shadow border border-border whitespace-nowrap z-10 pointer-events-none">
-                          {item.completions} completions
-                        </div>
-                      </div>
-
-                      {/* Enrollment Bar */}
-                      <div
-                        className="w-3.5 sm:w-5 bg-emerald-500/70 group-hover:bg-emerald-500 rounded-t-md transition-all relative"
-                        style={{ height: `${enrollmentHeight}px` }}
-                      >
-                        <div className="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-popover text-popover-foreground text-[10px] font-semibold px-1.5 py-0.5 rounded shadow border border-border whitespace-nowrap z-10 pointer-events-none">
-                          {item.enrollments} enrolled
-                        </div>
-                      </div>
-                    </div>
-                    <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                      {item.date}
-                    </span>
-                  </div>
+                  <line
+                    key={i}
+                    x1={paddingX}
+                    y1={y}
+                    x2={chartWidth - paddingX}
+                    y2={y}
+                    stroke="rgba(255,255,255,0.06)"
+                    strokeDasharray="4 4"
+                  />
                 )
               })}
+
+              {/* Area */}
+              {areaD && (
+                <path d={areaD} fill={`url(#${chartGradientId})`} />
+              )}
+
+              {/* Line */}
+              {pathD && (
+                <path
+                  d={pathD}
+                  fill="none"
+                  stroke="#3b82f6"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+
+              {/* Points & Interactive Tooltips */}
+              {points.map((pt, idx) => (
+                <g key={idx}>
+                  <circle
+                    cx={pt.x}
+                    cy={pt.y}
+                    r="3.5"
+                    className="fill-blue-500 stroke-[#09090b] stroke-2 hover:r-5 transition-all cursor-pointer"
+                    onMouseEnter={(e) => {
+                      setActiveTooltip(pt.item)
+                      setTooltipPos({ x: pt.x, y: pt.y })
+                    }}
+                    onMouseLeave={() => setActiveTooltip(null)}
+                  />
+                </g>
+              ))}
+            </svg>
+
+            {/* Hover Tooltip Overlay */}
+            {activeTooltip && tooltipPos && (
+              <div
+                className="absolute pointer-events-none z-20 bg-gray-900 border border-white/20 rounded-lg p-2.5 shadow-xl text-xs -translate-x-1/2 -translate-y-full mb-3"
+                style={{
+                  left: `${(tooltipPos.x / chartWidth) * 100}%`,
+                  top: `${tooltipPos.y}px`,
+                }}
+              >
+                <div className="font-semibold text-white mb-1">{activeTooltip.date}</div>
+                <div className="flex items-center justify-between gap-4 text-gray-300">
+                  <span>Views:</span>
+                  <span className="font-medium text-blue-400">{activeTooltip.views}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4 text-gray-300">
+                  <span>Enrollments:</span>
+                  <span className="font-medium text-emerald-400">{activeTooltip.enrollments}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4 text-gray-300">
+                  <span>Completions:</span>
+                  <span className="font-medium text-purple-400">{activeTooltip.completions}</span>
+                </div>
+              </div>
+            )}
+
+            {/* X-Axis Date Labels */}
+            <div className="flex justify-between text-[11px] text-gray-500 pt-2 px-2">
+              <span>{sparkline[0]?.date || ""}</span>
+              <span>{sparkline[Math.floor(sparkline.length / 2)]?.date || ""}</span>
+              <span>{sparkline[sparkline.length - 1]?.date || ""}</span>
             </div>
           </div>
+        )}
+      </div>
 
-          <div className="pt-4 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
-            <span>Aggregated across all registered students</span>
-            <span className="font-medium text-foreground">Updated in real-time</span>
+      {/* Row: Funnel & Countries */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Course Conversion Funnel */}
+        <div className="bg-[#09090b] border border-white/10 rounded-xl p-6 flex flex-col">
+          <div className="mb-6">
+            <h2 className="text-base font-semibold text-white">Course Conversion Funnel</h2>
+            <p className="text-xs text-gray-400">Step-by-step learner retention and completion flow.</p>
+          </div>
+
+          <div className="flex-1 flex flex-col justify-between gap-4">
+            {funnelSteps.map((step, idx) => {
+              const maxFunnelCount = funnelSteps[0]?.count || 1
+              const pctOfTop = Math.max(8, Math.round((step.count / maxFunnelCount) * 100))
+
+              return (
+                <div key={idx} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold text-gray-300">
+                        {idx + 1}
+                      </span>
+                      <span className="font-medium text-white">{step.name}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-semibold text-white">{step.count.toLocaleString()}</span>
+                      {step.conversionFromPrev !== null && (
+                        <span className="text-[11px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">
+                          {step.conversionFromPrev}% conv
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="w-full h-3 bg-white/5 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${pctOfTop}%`,
+                        background:
+                          idx === 0
+                            ? "linear-gradient(90deg, #3b82f6, #60a5fa)"
+                            : idx === 1
+                            ? "linear-gradient(90deg, #6366f1, #818cf8)"
+                            : idx === 2
+                            ? "linear-gradient(90deg, #10b981, #34d399)"
+                            : "linear-gradient(90deg, #a855f7, #c084fc)",
+                      }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
 
-        {/* Live Recent Activity Stream */}
-        <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-base font-semibold text-foreground">Recent Activity</h2>
-                <p className="text-xs text-muted-foreground">Latest actions from active learners</p>
-              </div>
-              <Sparkles className="w-4 h-4 text-purple-400" />
+        {/* Geographic Breakdown */}
+        <div className="bg-[#09090b] border border-white/10 rounded-xl p-6 flex flex-col">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-base font-semibold text-white">Geographic Distribution</h2>
+              <p className="text-xs text-gray-400">Top regions by learner views and sign-ups.</p>
             </div>
-
-            <div className="space-y-3.5 max-h-[300px] overflow-y-auto scrollbar-thin pr-1">
-              {(data?.recentActivity || []).length === 0 ? (
-                <div className="py-12 text-center text-xs text-muted-foreground">
-                  No recent activity recorded yet.
-                </div>
-              ) : (
-                data?.recentActivity.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-muted/40 transition-colors border border-border/40"
-                  >
-                    <div className="mt-0.5 w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
-                      {activity.type === "ENROLLMENT" && <GraduationCap className="w-3.5 h-3.5" />}
-                      {activity.type === "QUIZ_ATTEMPT" && <Award className="w-3.5 h-3.5 text-amber-400" />}
-                      {activity.type === "SUBMISSION" && <FileCheck2 className="w-3.5 h-3.5 text-emerald-400" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1 mb-0.5">
-                        <span className="text-xs font-semibold text-foreground truncate">
-                          {activity.user}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground shrink-0">
-                          {new Date(activity.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        {activity.courseTitle}
-                      </p>
-                      <span className="text-[10px] font-medium text-primary/90">
-                        {activity.details}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
+            <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
+              <Globe className="w-4 h-4 text-gray-400" />
             </div>
           </div>
 
-          <Link
-            href="/audience"
-            className="mt-4 pt-3 border-t border-border/60 text-xs font-medium text-primary hover:text-primary/80 transition-colors flex items-center justify-between"
-          >
-            <span>View all audience members</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+          <div className="flex-1 overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-white/10 text-gray-400 pb-2">
+                  <th className="font-medium pb-2">Country</th>
+                  <th className="font-medium pb-2 text-right">Views</th>
+                  <th className="font-medium pb-2 text-right">Enrollments</th>
+                  <th className="font-medium pb-2 text-right">Share</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {countries.map((c, i) => (
+                  <tr key={i} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="py-2.5 flex items-center gap-2 text-white font-medium">
+                      <span>{COUNTRY_FLAGS[c.country] || "🌐"}</span>
+                      <span>{c.country}</span>
+                    </td>
+                    <td className="py-2.5 text-right text-gray-300 font-mono">
+                      {c.views.toLocaleString()}
+                    </td>
+                    <td className="py-2.5 text-right text-emerald-400 font-mono">
+                      {c.enrollments.toLocaleString()}
+                    </td>
+                    <td className="py-2.5 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-blue-500 rounded-full"
+                            style={{ width: `${c.sharePercentage}%` }}
+                          />
+                        </div>
+                        <span className="text-[11px] text-gray-400 w-10 text-right">
+                          {c.sharePercentage}%
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      {/* Course Performance Master Table */}
-      <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Top Performing Courses */}
+      <div className="bg-[#09090b] border border-white/10 rounded-xl p-6">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-base font-semibold text-foreground">
-              Course Performance Breakdown
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Detailed tracking per published course, including enrollment volume and completion rate.
-            </p>
+            <h2 className="text-base font-semibold text-white">Top Performing Courses</h2>
+            <p className="text-xs text-gray-400">Ranked by overall views, active enrollments, and completion rates.</p>
           </div>
-
-          {/* Search Table */}
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Filter courses..."
-              className="w-full h-9 pl-9 pr-3 bg-muted/30 border border-border rounded-xl text-xs text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-primary transition-colors"
-            />
-          </div>
+          <Link
+            href="/courses"
+            className="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1 font-medium"
+          >
+            View All Courses
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </Link>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto rounded-xl border border-border/60">
+        <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-muted/40 text-muted-foreground font-semibold uppercase tracking-wider text-[11px] border-b border-border/60">
-              <tr>
-                <th className="py-3 px-4">Course Title</th>
-                <th className="py-3 px-4">Instructor</th>
-                <th className="py-3 px-4 text-center">Enrolled</th>
-                <th className="py-3 px-4 text-center">Lessons</th>
-                <th className="py-3 px-4">Completion Progress</th>
-                <th className="py-3 px-4 text-center">Avg Quiz</th>
-                <th className="py-3 px-4 text-center">Status</th>
-                <th className="py-3 px-4 text-right">Action</th>
+            <thead>
+              <tr className="border-b border-white/10 text-gray-400 pb-3">
+                <th className="font-medium pb-3 w-12">#</th>
+                <th className="font-medium pb-3">Course Title</th>
+                <th className="font-medium pb-3">Type</th>
+                <th className="font-medium pb-3 text-right">Views</th>
+                <th className="font-medium pb-3 text-right">Enrollments</th>
+                <th className="font-medium pb-3 text-right">Completions</th>
+                <th className="font-medium pb-3 text-right">Completion Rate</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/40 text-foreground">
-              {filteredCourses.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-muted-foreground">
-                    <BookOpen className="w-8 h-8 opacity-25 mx-auto mb-2" />
-                    <p className="font-medium text-foreground">No courses found</p>
-                    <p className="text-xs">
-                      {searchQuery ? "No courses matching your search query." : "No courses have been created yet."}
-                    </p>
+            <tbody className="divide-y divide-white/5">
+              {topCourses.map((course, idx) => (
+                <tr key={course.id} className="hover:bg-white/[0.02] transition-colors">
+                  <td className="py-3.5 text-gray-500 font-mono font-medium">0{idx + 1}</td>
+                  <td className="py-3.5">
+                    <Link
+                      href={`/courses/${course.id}/builder`}
+                      className="font-medium text-white hover:text-blue-400 transition-colors"
+                    >
+                      {course.title}
+                    </Link>
+                  </td>
+                  <td className="py-3.5">
+                    <span className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-md bg-white/5 text-gray-300 border border-white/10">
+                      {course.type.replace("_", " ")}
+                    </span>
+                  </td>
+                  <td className="py-3.5 text-right text-gray-200 font-mono font-medium">
+                    {course.views.toLocaleString()}
+                  </td>
+                  <td className="py-3.5 text-right text-emerald-400 font-mono font-medium">
+                    {course.enrollments.toLocaleString()}
+                  </td>
+                  <td className="py-3.5 text-right text-purple-400 font-mono font-medium">
+                    {course.completions.toLocaleString()}
+                  </td>
+                  <td className="py-3.5 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500 rounded-full"
+                          style={{ width: `${Math.min(100, course.completionRate)}%` }}
+                        />
+                      </div>
+                      <span className="text-[11px] font-semibold text-white w-12 text-right">
+                        {course.completionRate}%
+                      </span>
+                    </div>
                   </td>
                 </tr>
-              ) : (
-                filteredCourses.map((course) => (
-                  <tr key={course.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="py-3.5 px-4 font-medium text-foreground">
-                      <div className="flex flex-col">
-                        <span className="font-semibold">{course.title}</span>
-                        {course.description && (
-                          <span className="text-[11px] text-muted-foreground line-clamp-1">
-                            {course.description}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-muted-foreground font-medium">
-                      {course.instructorName}
-                    </td>
-                    <td className="py-3.5 px-4 text-center font-semibold text-foreground">
-                      {course.enrollmentsCount}
-                    </td>
-                    <td className="py-3.5 px-4 text-center text-muted-foreground">
-                      {course.lessonsCount}
-                    </td>
-                    <td className="py-3.5 px-4 min-w-[140px]">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-muted/60 h-2 rounded-full overflow-hidden">
-                          <div
-                            className="bg-primary h-full rounded-full transition-all duration-300"
-                            style={{ width: `${course.completionRate}%` }}
-                          />
-                        </div>
-                        <span className="font-semibold text-foreground text-xs shrink-0 w-9 text-right">
-                          {course.completionRate}%
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground">
-                        {course.completedLearnersCount} certified / {course.inProgressLearnersCount} in progress
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-center font-semibold text-amber-400">
-                      {course.averageQuizScore}%
-                    </td>
-                    <td className="py-3.5 px-4 text-center">
-                      <span
-                        className={cn(
-                          "px-2 py-0.5 rounded-full text-[10px] font-semibold border",
-                          course.published
-                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                            : "bg-muted text-muted-foreground border-border"
-                        )}
-                      >
-                        {course.published ? "Published" : "Draft"}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <Link
-                        href={`/courses/${course.id}`}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80 transition-colors p-1"
-                      >
-                        <span>Manage</span>
-                        <ArrowUpRight className="w-3.5 h-3.5" />
-                      </Link>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>

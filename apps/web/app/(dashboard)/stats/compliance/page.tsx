@@ -1,476 +1,725 @@
 "use client"
 
-import * as React from "react"
-import {
-  RefreshCw,
-  ShieldCheck,
-  ShieldOff,
-  AlertTriangle,
-  Clock,
-  Activity,
-  CircleDashed,
-  CheckCircle2,
-  HelpCircle,
-  BookOpen,
-  Download,
-  Search,
-  AlertCircle,
-  TrendingUp,
-  Loader2,
-  ArrowUpRight,
-  Users,
-  Check,
+import React, { useState, useEffect } from "react"
+import Link from "next/link"
+import { 
+  RefreshCw, 
+  ShieldCheck, 
+  ShieldOff, 
+  AlertTriangle, 
+  Clock, 
+  Activity, 
+  CircleDashed, 
+  CheckCircle, 
+  HelpCircle, 
+  Book, 
+  Plus, 
+  Search, 
+  Filter, 
+  X, 
+  Check, 
+  RotateCcw, 
+  Award,
+  ArrowRight,
+  ChevronRight
 } from "lucide-react"
 import { api } from "@/lib/api"
-import { cn } from "@/lib/utils"
-import Link from "next/link"
 
-interface ComplianceSummary {
+interface ComplianceOverview {
   compliant: number
-  nonCompliant: number
-  expiringSoon: number
-  inGracePeriod: number
-  inProgress: number
-  notStarted: number
+  non_compliant: number
+  expiring_soon: number
+  in_grace_period: number
+  in_progress: number
+  not_started: number
   waived: number
-  noRecord: number
-  overallComplianceRate: number
-  totalLearnersTracked: number
+  no_record: number
 }
 
-interface CourseCompliance {
+interface ComplianceCourse {
   id: string
   title: string
-  description: string | null
-  totalEnrolled: number
+  description?: string
+  type: string
+  validityMonths: number
+  gracePeriodDays: number
+  published: boolean
+  thumbnail?: string
+  totalLearners: number
   compliantCount: number
+  expiringSoonCount: number
+  gracePeriodCount: number
+  nonCompliantCount: number
   inProgressCount: number
   notStartedCount: number
-  nonCompliantCount: number
-  expiringSoonCount: number
+  waivedCount: number
   complianceRate: number
-  updatedAt: string
 }
 
-interface LearnerCompliance {
-  id: string
+interface ComplianceLearner {
+  recordId: string
   userId: string
-  name: string
-  email: string
+  learnerName: string
+  learnerEmail: string
+  learnerAvatar?: string
   courseId: string
   courseTitle: string
-  progressPercentage: number
-  status: "COMPLIANT" | "NON_COMPLIANT" | "EXPIRING_SOON" | "IN_GRACE_PERIOD" | "IN_PROGRESS" | "NOT_STARTED" | "WAIVED" | "NO_RECORD"
-  enrolledAt: string
-  completedLessons: number
-  totalLessons: number
-  certifiedAt: string | null
+  status: string
+  completedAt: string | null
   validUntil: string | null
-}
-
-interface ComplianceData {
-  summary: ComplianceSummary
-  courses: CourseCompliance[]
-  learners: LearnerCompliance[]
-}
-
-const STATUS_CONFIG = {
-  COMPLIANT: { label: "Compliant", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", icon: ShieldCheck },
-  NON_COMPLIANT: { label: "Non-compliant", color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", icon: ShieldOff },
-  EXPIRING_SOON: { label: "Expiring soon", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", icon: AlertTriangle },
-  IN_GRACE_PERIOD: { label: "Grace period", color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/20", icon: Clock },
-  IN_PROGRESS: { label: "In progress", color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20", icon: Activity },
-  NOT_STARTED: { label: "Not started", color: "text-muted-foreground", bg: "bg-muted/30", border: "border-border", icon: CircleDashed },
-  WAIVED: { label: "Waived", color: "text-slate-400", bg: "bg-slate-500/10", border: "border-slate-500/20", icon: CheckCircle2 },
-  NO_RECORD: { label: "No record", color: "text-muted-foreground", bg: "bg-muted/20", border: "border-border", icon: HelpCircle },
+  cycleNumber: number
 }
 
 export default function CompliancePage() {
-  const [data, setData] = React.useState<ComplianceData | null>(null)
-  const [loading, setLoading] = React.useState(true)
-  const [refreshing, setRefreshing] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-  const [activeTab, setActiveTab] = React.useState<"course" | "learners">("course")
-  const [searchQuery, setSearchQuery] = React.useState("")
-  const [lastUpdated, setLastUpdated] = React.useState("")
+  const [activeTab, setActiveTab] = useState<'by-course' | 'learners'>('by-course')
+  const [overview, setOverview] = useState<ComplianceOverview>({
+    compliant: 0,
+    non_compliant: 0,
+    expiring_soon: 0,
+    in_grace_period: 0,
+    in_progress: 0,
+    not_started: 0,
+    waived: 0,
+    no_record: 0,
+  })
+  const [courses, setCourses] = useState<ComplianceCourse[]>([])
+  const [learners, setLearners] = useState<ComplianceLearner[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
-  const fetchData = React.useCallback(async (manual = false) => {
-    if (manual) setRefreshing(true)
-    setError(null)
+  // Filters for learners tab
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [courseFilter, setCourseFilter] = useState('ALL')
+
+  // Create course modal
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [newTitle, setNewTitle] = useState('')
+  const [newDescription, setNewDescription] = useState('')
+  const [newValidityMonths, setNewValidityMonths] = useState(12)
+  const [newGracePeriodDays, setNewGracePeriodDays] = useState(14)
+  const [isCreating, setIsCreating] = useState(false)
+
+  // Action status notification
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null)
+
+  const loadData = async (isRefresh = false) => {
     try {
-      const res = await api.stats.getCompliance()
-      setData(res)
-      setLastUpdated(new Date().toLocaleTimeString())
-    } catch {
-      setError("Failed to load compliance data. Make sure the API server is running.")
+      if (isRefresh) setRefreshing(true)
+      else setLoading(true)
+
+      const [overviewData, coursesData, learnersData] = await Promise.all([
+        api.compliance.getOverview(),
+        api.compliance.getCourses(),
+        api.compliance.getLearners(),
+      ])
+
+      if (overviewData) setOverview(overviewData)
+      if (Array.isArray(coursesData)) setCourses(coursesData)
+      if (Array.isArray(learnersData)) setLearners(learnersData)
+    } catch (err) {
+      console.error("Failed to load compliance data:", err)
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
+  }
+
+  useEffect(() => {
+    loadData()
   }, [])
 
-  React.useEffect(() => {
-    fetchData()
-    const interval = setInterval(() => fetchData(), 30000)
-    return () => clearInterval(interval)
-  }, [fetchData])
+  const handleCreateComplianceCourse = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newTitle.trim()) return
 
-  const filteredCourses = React.useMemo(() => {
-    if (!data?.courses) return []
-    if (!searchQuery.trim()) return data.courses
-    const q = searchQuery.toLowerCase()
-    return data.courses.filter((c) => c.title.toLowerCase().includes(q))
-  }, [data, searchQuery])
-
-  const filteredLearners = React.useMemo(() => {
-    if (!data?.learners) return []
-    if (!searchQuery.trim()) return data.learners
-    const q = searchQuery.toLowerCase()
-    return data.learners.filter(
-      (l) => l.name.toLowerCase().includes(q) || l.email.toLowerCase().includes(q) || l.courseTitle.toLowerCase().includes(q)
-    )
-  }, [data, searchQuery])
-
-  const handleExportCSV = () => {
-    if (!data) return
-    const rows = data.learners.map((l) => [
-      `"${l.name}"`, `"${l.email}"`, `"${l.courseTitle}"`, l.status, `${l.progressPercentage}%`,
-      l.certifiedAt ? new Date(l.certifiedAt).toLocaleDateString() : "—",
-      l.validUntil ? new Date(l.validUntil).toLocaleDateString() : "—",
-    ])
-    const csv = "data:text/csv;charset=utf-8," + [
-      "Name,Email,Course,Status,Progress,Certified At,Valid Until",
-      ...rows.map((r) => r.join(",")),
-    ].join("\n")
-    const link = document.createElement("a")
-    link.href = encodeURI(csv)
-    link.download = `compliance_${new Date().toISOString().split("T")[0]}.csv`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    try {
+      setIsCreating(true)
+      await api.compliance.createCourse({
+        title: newTitle.trim(),
+        description: newDescription.trim(),
+        validityMonths: Number(newValidityMonths),
+        gracePeriodDays: Number(newGracePeriodDays),
+      })
+      setIsModalOpen(false)
+      setNewTitle('')
+      setNewDescription('')
+      setActionSuccess("Compliance course created successfully!")
+      setTimeout(() => setActionSuccess(null), 4000)
+      await loadData(true)
+    } catch (err) {
+      console.error("Failed to create compliance course:", err)
+    } finally {
+      setIsCreating(false)
+    }
   }
 
-  if (loading && !data) {
-    return (
-      <div className="p-8 max-w-[1200px] mx-auto flex items-center justify-center h-64 gap-3 text-muted-foreground">
-        <Loader2 className="w-5 h-5 animate-spin" />
-        <span className="text-sm">Loading compliance data…</span>
-      </div>
-    )
+  const handleWaive = async (courseId: string, userId: string, learnerName: string) => {
+    try {
+      await api.compliance.waive(courseId, userId)
+      setActionSuccess(`Waived compliance requirement for ${learnerName}`)
+      setTimeout(() => setActionSuccess(null), 4000)
+      await loadData(true)
+    } catch (err) {
+      console.error("Failed to waive compliance:", err)
+    }
   }
 
-  const s = data?.summary
+  const handleReset = async (courseId: string, userId: string, learnerName: string) => {
+    try {
+      await api.compliance.reset(courseId, userId)
+      setActionSuccess(`Reset compliance cycle for ${learnerName}`)
+      setTimeout(() => setActionSuccess(null), 4000)
+      await loadData(true)
+    } catch (err) {
+      console.error("Failed to reset compliance:", err)
+    }
+  }
 
-  const statCards = [
-    { key: "compliant", label: "Compliant", value: s?.compliant ?? 0, icon: ShieldCheck, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-    { key: "nonCompliant", label: "Non-compliant", value: s?.nonCompliant ?? 0, icon: ShieldOff, color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20" },
-    { key: "expiringSoon", label: "Expiring soon", value: s?.expiringSoon ?? 0, icon: AlertTriangle, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
-    { key: "inGracePeriod", label: "In grace period", value: s?.inGracePeriod ?? 0, icon: Clock, color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/20" },
-    { key: "inProgress", label: "In progress", value: s?.inProgress ?? 0, icon: Activity, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-    { key: "notStarted", label: "Not started", value: s?.notStarted ?? 0, icon: CircleDashed, color: "text-muted-foreground", bg: "bg-muted/30", border: "border-border" },
-    { key: "waived", label: "Waived", value: s?.waived ?? 0, icon: CheckCircle2, color: "text-slate-400", bg: "bg-slate-500/10", border: "border-slate-500/20" },
-    { key: "noRecord", label: "No record", value: s?.noRecord ?? 0, icon: HelpCircle, color: "text-muted-foreground", bg: "bg-muted/20", border: "border-border" },
-  ]
+  const filteredLearners = learners.filter((l) => {
+    const matchesSearch =
+      l.learnerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      l.learnerEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      l.courseTitle.toLowerCase().includes(searchQuery.toLowerCase())
+
+    const matchesStatus = statusFilter === 'ALL' || l.status === statusFilter
+    const matchesCourse = courseFilter === 'ALL' || l.courseId === courseFilter
+
+    return matchesSearch && matchesStatus && matchesCourse
+  })
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'compliant':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <ShieldCheck className="w-3 h-3" /> Compliant
+          </span>
+        )
+      case 'expiring_soon':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <AlertTriangle className="w-3 h-3" /> Expiring Soon
+          </span>
+        )
+      case 'in_grace_period':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-500/10 text-orange-400 border border-orange-500/20">
+            <Clock className="w-3 h-3" /> In Grace Period
+          </span>
+        )
+      case 'non_compliant':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
+            <ShieldOff className="w-3 h-3" /> Non-compliant
+          </span>
+        )
+      case 'in_progress':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            <Activity className="w-3 h-3" /> In Progress
+          </span>
+        )
+      case 'waived':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
+            <CheckCircle className="w-3 h-3" /> Waived
+          </span>
+        )
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-500/10 text-gray-400 border border-white/10">
+            <CircleDashed className="w-3 h-3" /> Not Started
+          </span>
+        )
+    }
+  }
 
   return (
-    <div className="p-6 sm:p-8 max-w-[1200px] mx-auto space-y-8 text-foreground">
+    <div className="p-8 max-w-[1300px] mx-auto text-gray-200">
+      {/* Action Notification Alert */}
+      {actionSuccess && (
+        <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-between text-sm animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-2">
+            <Check className="w-4 h-4" />
+            <span>{actionSuccess}</span>
+          </div>
+          <button onClick={() => setActionSuccess(null)} className="text-emerald-400/80 hover:text-emerald-300">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <div className="flex items-center gap-2.5 mb-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Compliance</h1>
-            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Live Sync
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-2xl font-bold text-white tracking-tight">Compliance Training</h1>
+            <span className="px-2 py-0.5 text-xs font-semibold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full">
+              Enterprise
             </span>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Track certification status across every compliance course in your organization.
+          <p className="text-sm text-gray-400">
+            Track recurring certifications, validity periods, and learner compliance status across all compliance courses.
           </p>
         </div>
-        <div className="flex items-center gap-2.5">
+
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => fetchData(true)}
-            disabled={refreshing}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium bg-muted/40 hover:bg-muted border border-border rounded-xl transition-colors disabled:opacity-50"
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-500 transition-colors shadow-sm"
           >
-            <RefreshCw className={cn("w-3.5 h-3.5", refreshing && "animate-spin text-primary")} />
-            {refreshing ? "Refreshing…" : "Refresh"}
+            <Plus className="w-4 h-4" />
+            New Compliance Course
           </button>
           <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-xl transition-all shadow-sm shadow-primary/20"
+            onClick={() => loadData(true)}
+            disabled={loading || refreshing}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 bg-[#09090b] border border-white/10 rounded-lg hover:bg-white/5 transition-colors disabled:opacity-50"
           >
-            <Download className="w-3.5 h-3.5" />
-            Export CSV
+            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin text-blue-400" : ""}`} />
+            Refresh
           </button>
         </div>
       </div>
 
-      {lastUpdated && (
-        <p className="text-[11px] text-muted-foreground/70 -mt-5">Last updated at {lastUpdated} · auto-refreshes every 30s</p>
-      )}
-
-      {error && (
-        <div className="flex items-center justify-between p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-          <button onClick={() => fetchData(true)} className="text-xs font-semibold underline">Retry</button>
+      {/* Learner Status 8-Card Grid */}
+      <div className="bg-[#09090b] border border-white/10 rounded-xl p-6 mb-8 shadow-sm">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm font-semibold text-white">Learner Status Overview</h2>
+          <span className="text-xs text-gray-400">Aggregated across all compliance programs</span>
         </div>
-      )}
+        <p className="text-xs text-gray-500 mb-6">Real-time status breakdown based on course validity and grace period policies.</p>
 
-      {/* Overall Compliance Rate Banner */}
-      <div className="rounded-2xl border border-border/80 bg-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Overall Compliance Rate</p>
-          <div className="flex items-baseline gap-3">
-            <span className="text-4xl font-bold text-foreground">{s?.overallComplianceRate ?? 0}%</span>
-            <span className="text-sm text-muted-foreground">{s?.totalLearnersTracked ?? 0} learners tracked</span>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
+          {/* 1. Compliant */}
+          <div className="bg-white/[0.02] border border-emerald-500/20 rounded-xl p-3.5 hover:bg-emerald-500/[0.04] transition-all">
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center mb-2.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            </div>
+            <p className="text-2xl font-bold text-white mb-0.5">{loading ? "—" : overview.compliant}</p>
+            <p className="text-[11px] font-medium text-emerald-400/90">Compliant</p>
           </div>
-          <div className="mt-3 w-full max-w-xs bg-muted/60 h-2 rounded-full overflow-hidden">
-            <div
-              className="bg-emerald-500 h-full rounded-full transition-all duration-700"
-              style={{ width: `${Math.min(100, s?.overallComplianceRate ?? 0)}%` }}
-            />
+
+          {/* 2. Non-compliant */}
+          <div className="bg-white/[0.02] border border-rose-500/20 rounded-xl p-3.5 hover:bg-rose-500/[0.04] transition-all">
+            <div className="w-7 h-7 rounded-lg bg-rose-500/10 flex items-center justify-center mb-2.5">
+              <ShieldOff className="w-4 h-4 text-rose-400" />
+            </div>
+            <p className="text-2xl font-bold text-white mb-0.5">{loading ? "—" : overview.non_compliant}</p>
+            <p className="text-[11px] font-medium text-rose-400/90">Non-compliant</p>
           </div>
-        </div>
-        <div className="flex items-center gap-4 text-sm">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-emerald-400">{s?.compliant ?? 0}</p>
-            <p className="text-xs text-muted-foreground">Certified</p>
+
+          {/* 3. Expiring Soon */}
+          <div className="bg-white/[0.02] border border-amber-500/20 rounded-xl p-3.5 hover:bg-amber-500/[0.04] transition-all">
+            <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center mb-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-400" />
+            </div>
+            <p className="text-2xl font-bold text-white mb-0.5">{loading ? "—" : overview.expiring_soon}</p>
+            <p className="text-[11px] font-medium text-amber-400/90">Expiring soon</p>
           </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-blue-400">{s?.inProgress ?? 0}</p>
-            <p className="text-xs text-muted-foreground">In Progress</p>
+
+          {/* 4. In Grace Period */}
+          <div className="bg-white/[0.02] border border-orange-500/20 rounded-xl p-3.5 hover:bg-orange-500/[0.04] transition-all">
+            <div className="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center mb-2.5">
+              <Clock className="w-4 h-4 text-orange-400" />
+            </div>
+            <p className="text-2xl font-bold text-white mb-0.5">{loading ? "—" : overview.in_grace_period}</p>
+            <p className="text-[11px] font-medium text-orange-400/90">In grace period</p>
           </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-amber-400">{s?.expiringSoon ?? 0}</p>
-            <p className="text-xs text-muted-foreground">Expiring</p>
+
+          {/* 5. In Progress */}
+          <div className="bg-white/[0.02] border border-blue-500/20 rounded-xl p-3.5 hover:bg-blue-500/[0.04] transition-all">
+            <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center mb-2.5">
+              <Activity className="w-4 h-4 text-blue-400" />
+            </div>
+            <p className="text-2xl font-bold text-white mb-0.5">{loading ? "—" : overview.in_progress}</p>
+            <p className="text-[11px] font-medium text-blue-400/90">In progress</p>
+          </div>
+
+          {/* 6. Not Started */}
+          <div className="bg-white/[0.02] border border-white/10 rounded-xl p-3.5 hover:bg-white/5 transition-all">
+            <div className="w-7 h-7 rounded-lg bg-gray-500/10 flex items-center justify-center mb-2.5">
+              <CircleDashed className="w-4 h-4 text-gray-400" />
+            </div>
+            <p className="text-2xl font-bold text-white mb-0.5">{loading ? "—" : overview.not_started}</p>
+            <p className="text-[11px] font-medium text-gray-400">Not started</p>
+          </div>
+
+          {/* 7. Waived */}
+          <div className="bg-white/[0.02] border border-purple-500/20 rounded-xl p-3.5 hover:bg-purple-500/[0.04] transition-all">
+            <div className="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center mb-2.5">
+              <CheckCircle className="w-4 h-4 text-purple-400" />
+            </div>
+            <p className="text-2xl font-bold text-white mb-0.5">{loading ? "—" : overview.waived}</p>
+            <p className="text-[11px] font-medium text-purple-400/90">Waived</p>
+          </div>
+
+          {/* 8. No Record */}
+          <div className="bg-white/[0.02] border border-white/10 rounded-xl p-3.5 hover:bg-white/5 transition-all">
+            <div className="w-7 h-7 rounded-lg bg-gray-500/10 flex items-center justify-center mb-2.5">
+              <HelpCircle className="w-4 h-4 text-gray-400" />
+            </div>
+            <p className="text-2xl font-bold text-white mb-0.5">{loading ? "—" : overview.no_record}</p>
+            <p className="text-[11px] font-medium text-gray-400">No record</p>
           </div>
         </div>
       </div>
 
-      {/* Learner Status Grid */}
-      <div className="rounded-2xl border border-border/80 bg-card p-6">
-        <h2 className="text-sm font-semibold text-foreground mb-1">Learner Status Distribution</h2>
-        <p className="text-xs text-muted-foreground mb-6">Counts across learners in all compliance courses.</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {statCards.map(({ key, label, value, icon: Icon, color, bg, border }) => (
-            <div key={key} className={cn("rounded-xl border p-4 flex flex-col gap-2", bg, border)}>
-              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center bg-background/50 border", border)}>
-                <Icon className={cn("w-4 h-4", color)} />
+      {/* Tabs */}
+      <div className="flex items-center gap-6 border-b border-white/10 mb-6">
+        <button
+          onClick={() => setActiveTab('by-course')}
+          className={`pb-3 text-sm font-semibold transition-all relative ${
+            activeTab === 'by-course'
+              ? "text-blue-400 border-b-2 border-blue-500"
+              : "text-gray-400 hover:text-gray-200"
+          }`}
+        >
+          By course ({courses.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('learners')}
+          className={`pb-3 text-sm font-semibold transition-all relative ${
+            activeTab === 'learners'
+              ? "text-blue-400 border-b-2 border-blue-500"
+              : "text-gray-400 hover:text-gray-200"
+          }`}
+        >
+          Learners ({learners.length})
+        </button>
+      </div>
+
+      {/* Tab 1: By Course View */}
+      {activeTab === 'by-course' && (
+        <div className="space-y-4">
+          {loading ? (
+            <div className="bg-[#09090b] border border-white/10 rounded-xl p-12 flex flex-col items-center justify-center text-sm text-gray-400">
+              <RefreshCw className="w-6 h-6 animate-spin text-blue-500 mb-3" />
+              Loading compliance courses...
+            </div>
+          ) : courses.length === 0 ? (
+            <div className="bg-[#09090b] border border-white/10 rounded-xl p-12 flex flex-col items-center justify-center text-center">
+              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-4">
+                <Book className="w-6 h-6 text-gray-400" />
               </div>
-              <p className={cn("text-2xl font-bold", color)}>{value}</p>
-              <p className="text-xs text-muted-foreground font-medium">{label}</p>
+              <h3 className="text-base font-semibold text-white mb-1">No compliance courses yet</h3>
+              <p className="text-xs text-gray-400 max-w-sm mb-6">
+                Create recurring compliance courses to enforce yearly data privacy, security, and harassment certifications.
+              </p>
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-500 transition-colors"
+              >
+                Create First Compliance Course
+              </button>
             </div>
-          ))}
-        </div>
-      </div>
+          ) : (
+            courses.map((course) => (
+              <div
+                key={course.id}
+                className="bg-[#09090b] border border-white/10 rounded-xl p-6 hover:border-white/20 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-6"
+              >
+                {/* Course Details */}
+                <div className="flex-1 max-w-xl">
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      Compliance
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      Valid for {course.validityMonths} months · {course.gracePeriodDays} days grace
+                    </span>
+                  </div>
 
-      {/* Tabs + Search */}
-      <div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
-          <div className="flex items-center bg-muted/40 p-1 rounded-xl border border-border w-fit">
-            <button
-              onClick={() => setActiveTab("course")}
-              className={cn(
-                "px-4 py-1.5 text-sm font-medium rounded-lg transition-all",
-                activeTab === "course" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              By Course ({data?.courses.length ?? 0})
-            </button>
-            <button
-              onClick={() => setActiveTab("learners")}
-              className={cn(
-                "px-4 py-1.5 text-sm font-medium rounded-lg transition-all",
-                activeTab === "learners" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              By Learner ({data?.learners.length ?? 0})
-            </button>
-          </div>
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={activeTab === "course" ? "Filter courses…" : "Filter learners…"}
-              className="w-full h-9 pl-9 pr-3 bg-muted/30 border border-border rounded-xl text-xs focus:outline-none focus:border-primary transition-colors text-foreground placeholder:text-muted-foreground/70"
-            />
-          </div>
-        </div>
+                  <h3 className="text-lg font-bold text-white mb-1.5">{course.title}</h3>
+                  <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed mb-4">
+                    {course.description || "Mandatory compliance module for organizational certification."}
+                  </p>
 
-        {/* By Course Table */}
-        {activeTab === "course" && (
-          <div className="rounded-2xl border border-border/80 bg-card overflow-hidden">
-            <div className="px-6 py-4 border-b border-border/60 bg-muted/20">
-              <h2 className="text-sm font-semibold text-foreground">Compliance Courses</h2>
-              <p className="text-xs text-muted-foreground">Course-level compliance status with learner counts.</p>
+                  {/* Micro stats pills */}
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="px-2.5 py-1 rounded-md bg-white/5 text-gray-300 font-medium">
+                      {course.totalLearners} Learners Enrolled
+                    </span>
+                    <span className="px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 font-medium">
+                      {course.compliantCount} Compliant
+                    </span>
+                    {course.expiringSoonCount > 0 && (
+                      <span className="px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-400 font-medium">
+                        {course.expiringSoonCount} Expiring Soon
+                      </span>
+                    )}
+                    {course.gracePeriodCount > 0 && (
+                      <span className="px-2.5 py-1 rounded-md bg-orange-500/10 text-orange-400 font-medium">
+                        {course.gracePeriodCount} In Grace Period
+                      </span>
+                    )}
+                    {course.nonCompliantCount > 0 && (
+                      <span className="px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-400 font-medium">
+                        {course.nonCompliantCount} Non-compliant
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Progress Bar & Actions */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-6 self-start lg:self-auto">
+                  <div className="w-48 space-y-1.5">
+                    <div className="flex justify-between text-xs font-semibold">
+                      <span className="text-gray-400">Compliance Rate</span>
+                      <span className="text-white font-mono">{course.complianceRate}%</span>
+                    </div>
+                    <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, course.complianceRate)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setCourseFilter(course.id)
+                        setActiveTab('learners')
+                      }}
+                      className="px-3.5 py-2 text-xs font-semibold text-gray-200 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors flex items-center gap-1.5"
+                    >
+                      Learners ({course.totalLearners})
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                    <Link
+                      href={`/courses/${course.id}/builder`}
+                      className="px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors"
+                    >
+                      Edit Course
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Tab 2: Learners View */}
+      {activeTab === 'learners' && (
+        <div className="bg-[#09090b] border border-white/10 rounded-xl p-6">
+          {/* Filters Row */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by learner name, email, or course..."
+                className="w-full h-10 pl-9 pr-4 bg-white/5 border border-white/10 rounded-lg text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+              />
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-muted/30 text-muted-foreground uppercase tracking-wider text-[11px] border-b border-border/60">
+
+            <div className="flex items-center gap-2">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-10 px-3 bg-white/5 border border-white/10 rounded-lg text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              >
+                <option value="ALL" className="bg-gray-900">All Statuses</option>
+                <option value="compliant" className="bg-gray-900">Compliant</option>
+                <option value="expiring_soon" className="bg-gray-900">Expiring Soon</option>
+                <option value="in_grace_period" className="bg-gray-900">In Grace Period</option>
+                <option value="non_compliant" className="bg-gray-900">Non-compliant</option>
+                <option value="in_progress" className="bg-gray-900">In Progress</option>
+                <option value="not_started" className="bg-gray-900">Not Started</option>
+                <option value="waived" className="bg-gray-900">Waived</option>
+              </select>
+
+              <select
+                value={courseFilter}
+                onChange={(e) => setCourseFilter(e.target.value)}
+                className="h-10 px-3 bg-white/5 border border-white/10 rounded-lg text-xs text-gray-200 focus:outline-none focus:border-blue-500"
+              >
+                <option value="ALL" className="bg-gray-900">All Courses</option>
+                {courses.map((c) => (
+                  <option key={c.id} value={c.id} className="bg-gray-900">{c.title}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Learners Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-white/10 text-gray-400 pb-3">
+                  <th className="font-semibold pb-3">Learner</th>
+                  <th className="font-semibold pb-3">Course</th>
+                  <th className="font-semibold pb-3">Status</th>
+                  <th className="font-semibold pb-3">Completed Date</th>
+                  <th className="font-semibold pb-3">Valid Until</th>
+                  <th className="font-semibold pb-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {filteredLearners.length === 0 ? (
                   <tr>
-                    <th className="py-3 px-4">Course</th>
-                    <th className="py-3 px-4 text-center">Enrolled</th>
-                    <th className="py-3 px-4 text-center">Compliant</th>
-                    <th className="py-3 px-4 text-center">In Progress</th>
-                    <th className="py-3 px-4 text-center">Not Started</th>
-                    <th className="py-3 px-4">Compliance Rate</th>
-                    <th className="py-3 px-4 text-right">Action</th>
+                    <td colSpan={6} className="py-12 text-center text-gray-500">
+                      No matching learner compliance records found.
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
-                  {filteredCourses.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-16 text-center text-muted-foreground">
-                        <BookOpen className="w-8 h-8 opacity-20 mx-auto mb-2" />
-                        <p className="font-medium text-foreground">No compliance courses found</p>
-                        <p className="text-xs mt-1">
-                          {searchQuery ? "No courses match your search." : "Publish courses and enroll learners to track compliance."}
-                        </p>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredCourses.map((course) => (
-                      <tr key={course.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="py-3.5 px-4">
-                          <p className="font-semibold text-foreground">{course.title}</p>
-                          {course.description && (
-                            <p className="text-[11px] text-muted-foreground line-clamp-1">{course.description}</p>
-                          )}
-                        </td>
-                        <td className="py-3.5 px-4 text-center font-semibold text-foreground">{course.totalEnrolled}</td>
-                        <td className="py-3.5 px-4 text-center text-emerald-400 font-semibold">{course.compliantCount}</td>
-                        <td className="py-3.5 px-4 text-center text-blue-400 font-semibold">{course.inProgressCount}</td>
-                        <td className="py-3.5 px-4 text-center text-muted-foreground">{course.notStartedCount}</td>
-                        <td className="py-3.5 px-4 min-w-[150px]">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-muted/60 h-1.5 rounded-full overflow-hidden">
-                              <div
-                                className={cn(
-                                  "h-full rounded-full transition-all duration-500",
-                                  course.complianceRate >= 80 ? "bg-emerald-500" :
-                                  course.complianceRate >= 50 ? "bg-amber-500" : "bg-red-500"
-                                )}
-                                style={{ width: `${course.complianceRate}%` }}
-                              />
-                            </div>
-                            <span className="text-xs font-bold text-foreground w-8 text-right">{course.complianceRate}%</span>
+                ) : (
+                  filteredLearners.map((learner) => (
+                    <tr key={learner.recordId} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="py-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-xs">
+                            {learner.learnerAvatar ? (
+                              <img src={learner.learnerAvatar} alt={learner.learnerName} className="w-8 h-8 rounded-full" />
+                            ) : (
+                              learner.learnerName.charAt(0)
+                            )}
                           </div>
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <Link href={`/courses/${course.id}`} className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80 transition-colors">
-                            View <ArrowUpRight className="w-3.5 h-3.5" />
-                          </Link>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* By Learner Table */}
-        {activeTab === "learners" && (
-          <div className="rounded-2xl border border-border/80 bg-card overflow-hidden">
-            <div className="px-6 py-4 border-b border-border/60 bg-muted/20">
-              <h2 className="text-sm font-semibold text-foreground">Learner Compliance Status</h2>
-              <p className="text-xs text-muted-foreground">Individual compliance record per learner per course.</p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-muted/30 text-muted-foreground uppercase tracking-wider text-[11px] border-b border-border/60">
-                  <tr>
-                    <th className="py-3 px-4">Learner</th>
-                    <th className="py-3 px-4">Course</th>
-                    <th className="py-3 px-4">Progress</th>
-                    <th className="py-3 px-4 text-center">Status</th>
-                    <th className="py-3 px-4 text-center">Certified</th>
-                    <th className="py-3 px-4 text-center">Valid Until</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
-                  {filteredLearners.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-16 text-center text-muted-foreground">
-                        <Users className="w-8 h-8 opacity-20 mx-auto mb-2" />
-                        <p className="font-medium text-foreground">No learner records found</p>
-                        <p className="text-xs mt-1">
-                          {searchQuery ? "No learners match your search." : "Enroll learners in courses to track their compliance status."}
-                        </p>
+                          <div>
+                            <div className="font-semibold text-white">{learner.learnerName}</div>
+                            <div className="text-[11px] text-gray-400">{learner.learnerEmail}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3.5 text-gray-300 font-medium max-w-[220px] truncate">
+                        {learner.courseTitle}
+                      </td>
+                      <td className="py-3.5">
+                        {getStatusBadge(learner.status)}
+                      </td>
+                      <td className="py-3.5 text-gray-400 font-mono text-[11px]">
+                        {learner.completedAt ? new Date(learner.completedAt).toLocaleDateString() : "—"}
+                      </td>
+                      <td className="py-3.5 text-gray-400 font-mono text-[11px]">
+                        {learner.validUntil ? (
+                          <span className={learner.status === 'expiring_soon' ? "text-amber-400 font-semibold" : learner.status === 'non_compliant' ? "text-rose-400 font-semibold" : ""}>
+                            {new Date(learner.validUntil).toLocaleDateString()}
+                          </span>
+                        ) : "—"}
+                      </td>
+                      <td className="py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {learner.status !== 'waived' && (
+                            <button
+                              onClick={() => handleWaive(learner.courseId, learner.userId, learner.learnerName)}
+                              className="px-2.5 py-1 text-[11px] font-medium text-purple-300 hover:text-white bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 rounded-md transition-colors"
+                              title="Waive compliance requirement"
+                            >
+                              Waive
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleReset(learner.courseId, learner.userId, learner.learnerName)}
+                            className="px-2.5 py-1 text-[11px] font-medium text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-md transition-colors flex items-center gap-1"
+                            title="Reset compliance cycle to require retake"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            Reset
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  ) : (
-                    filteredLearners.map((learner) => {
-                      const cfg = STATUS_CONFIG[learner.status]
-                      const StatusIcon = cfg.icon
-                      return (
-                        <tr key={learner.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="py-3.5 px-4">
-                            <p className="font-semibold text-foreground">{learner.name}</p>
-                            <p className="text-[11px] text-muted-foreground">{learner.email}</p>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <p className="font-medium text-foreground line-clamp-1">{learner.courseTitle}</p>
-                            <p className="text-[11px] text-muted-foreground">
-                              {learner.completedLessons}/{learner.totalLessons} lessons
-                            </p>
-                          </td>
-                          <td className="py-3.5 px-4 min-w-[120px]">
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1 bg-muted/60 h-1.5 rounded-full overflow-hidden">
-                                <div
-                                  className={cn(
-                                    "h-full rounded-full transition-all",
-                                    learner.progressPercentage === 100 ? "bg-emerald-500" :
-                                    learner.progressPercentage >= 50 ? "bg-blue-500" : "bg-muted-foreground/40"
-                                  )}
-                                  style={{ width: `${learner.progressPercentage}%` }}
-                                />
-                              </div>
-                              <span className="text-xs font-bold text-foreground w-8 text-right">{learner.progressPercentage}%</span>
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-4 text-center">
-                            <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold", cfg.bg, cfg.border, cfg.color)}>
-                              <StatusIcon className="w-3 h-3" />
-                              {cfg.label}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-center text-muted-foreground">
-                            {learner.certifiedAt
-                              ? <span className="flex items-center justify-center gap-1 text-emerald-400 font-medium"><Check className="w-3 h-3" />{new Date(learner.certifiedAt).toLocaleDateString()}</span>
-                              : <span className="text-muted-foreground/50">—</span>
-                            }
-                          </td>
-                          <td className="py-3.5 px-4 text-center text-muted-foreground">
-                            {learner.validUntil ? (
-                              <span className={cn(
-                                "font-medium",
-                                new Date(learner.validUntil) < new Date() ? "text-red-400" :
-                                new Date(learner.validUntil) < new Date(Date.now() + 30 * 86400000) ? "text-amber-400" :
-                                "text-foreground"
-                              )}>
-                                {new Date(learner.validUntil).toLocaleDateString()}
-                              </span>
-                            ) : <span className="text-muted-foreground/50">—</span>}
-                          </td>
-                        </tr>
-                      )
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Create Compliance Course Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-[#0e0e11] border border-white/10 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-6">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div>
+                <h3 className="text-lg font-bold text-white">Create Compliance Course</h3>
+                <p className="text-xs text-gray-400">Configure recurring training, validity windows, and grace periods.</p>
+              </div>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateComplianceCourse} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1.5">Course Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="e.g. Annual Information Security & HIPAA Training"
+                  className="w-full h-10 px-3 bg-white/5 border border-white/10 rounded-lg text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1.5">Description</label>
+                <textarea
+                  rows={3}
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                  placeholder="Describe compliance standards, regulations covered, and learning outcomes..."
+                  className="w-full p-3 bg-white/5 border border-white/10 rounded-lg text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 mb-1.5">Validity Period (Months)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={36}
+                    value={newValidityMonths}
+                    onChange={(e) => setNewValidityMonths(Number(e.target.value))}
+                    className="w-full h-10 px-3 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-blue-500"
+                  />
+                  <span className="text-[10px] text-gray-500 mt-1 block">Usually 12 months</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 mb-1.5">Grace Period (Days)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={90}
+                    value={newGracePeriodDays}
+                    onChange={(e) => setNewGracePeriodDays(Number(e.target.value))}
+                    className="w-full h-10 px-3 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-blue-500"
+                  />
+                  <span className="text-[10px] text-gray-500 mt-1 block">Days before marked non-compliant</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 text-xs font-medium text-gray-300 hover:text-white bg-transparent hover:bg-white/5 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreating || !newTitle.trim()}
+                  className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {isCreating ? "Creating..." : "Create Course"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

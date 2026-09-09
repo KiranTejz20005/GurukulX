@@ -10,8 +10,14 @@ import { MediaModule } from './media/media.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { ForumsModule } from './forums/forums.module';
-import { StatsModule } from './stats/stats.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { StatsModule } from './stats/stats.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { ComplianceModule } from './compliance/compliance.module';
+import { DashModule } from './dash/dash.module';
+import { AudienceModule } from './audience/audience.module';
+import { TagsModule } from './tags/tags.module';
+import { WidgetsModule } from './widgets/widgets.module';
 
 @Module({
   imports: [
@@ -26,6 +32,12 @@ import { NotificationsModule } from './notifications/notifications.module';
     WorkspacesModule,
     MediaModule,
     StatsModule,
+    AnalyticsModule,
+    ComplianceModule,
+    DashModule,
+    AudienceModule,
+    TagsModule,
+    WidgetsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
