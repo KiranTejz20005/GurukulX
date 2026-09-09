@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Headers } from '@nestjs/common';
 import { WorkspacesService } from './workspaces.service';
 
 @Controller('workspaces')
@@ -13,6 +13,18 @@ export class WorkspacesController {
   @Get()
   findAll() {
     return this.workspacesService.findAll();
+  }
+
+  @Get('setup-progress')
+  getSetupProgress(@Param('workspaceId') wsParam: string, @Headers() headers: Record<string, string>) {
+    const wsId = headers['x-workspace-id'] || 'dev-workspace-123';
+    return this.workspacesService.getSetupProgress(wsId);
+  }
+
+  @Get('current')
+  async getCurrent(@Headers() headers: Record<string, string>) {
+    const wsId = headers['x-workspace-id'] || 'dev-workspace-123';
+    return this.workspacesService.findOne(wsId);
   }
 
   @Get(':id')

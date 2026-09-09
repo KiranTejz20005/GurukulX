@@ -140,4 +140,10 @@ export const api = {
     deleteOne: (id: string) => apiClient.delete(`/notifications/${id}`).then((res) => res.data),
     clearAll: () => apiClient.delete('/notifications/clear-all').then((res) => res.data),
   },
+  workspaces: {
+    getSetupProgress: () => apiClient.get('/workspaces/setup-progress').then((res) => res.data),
+    getCurrent: () => apiClient.get('/workspaces/current').then((res) => res.data),
+    getOne: (id: string) => apiClient.get(`/workspaces/${id}`).then((res) => res.data),
+    update: (id: string, data: any) => apiClient.patch(`/workspaces/${id}`, data).then((res) => res.data),
+  },
 };

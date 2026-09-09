@@ -62,4 +62,77 @@ export class WorkspacesService {
 
     return member;
   }
+
+  async getSetupProgress(workspaceId: string) {
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      include: {
+        courses: {
+          include: {
+            modules: {
+              include: {
+                lessons: true,
+              },
+            },
+          },
+        },
+        members: true,
+      },
+    });
+
+    if (!workspace) {
+      return {
+        completedCount: 1,
+        totalCount: 6,
+        percentage: 17,
+        workspace: { id: workspaceId, name: "GurukulX", slug: "st-peters" },
+      };
+    }
+
+    const hasProfile = true; // logged in
+    const hasOrg = Boolean(workspace.name && workspace.slug);
+    const hasCourse = workspace.courses.length > 0;
+    
+    let hasLesson = false;
+    let hasExercise = false;
+    let hasPublished = false;
+
+    for (const c of workspace.courses) {
+      if (c.published) hasPublished = true;
+      for (const m of c.modules) {
+        if (m.lessons && m.lessons.length > 0) {
+          hasLesson = true;
+          if (m.lessons.some((l) => l.type === 'QUIZ')) {
+            hasExercise = true;
+          }
+        }
+      }
+    }
+
+    const steps = [
+      { id: 'profile', completed: hasProfile },
+      { id: 'org', completed: hasOrg },
+      { id: 'course', completed: hasCourse },
+      { id: 'lesson', completed: hasLesson },
+      { id: 'exercise', completed: hasExercise },
+      { id: 'publish', completed: hasPublished },
+    ];
+
+    const completedCount = steps.filter((s) => s.completed).length;
+    const totalCount = steps.length;
+    const percentage = Math.round((completedCount / totalCount) * 100);
+
+    return {
+      completedCount,
+      totalCount,
+      percentage,
+      steps,
+      workspace: {
+        id: workspace.id,
+        name: workspace.name,
+        slug: workspace.slug,
+        customDomain: workspace.customDomain,
+      },
+    };
+  }
 }
