@@ -1,34 +1,39 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Headers } from '@nestjs/common';
 import { ProgramsService } from './programs.service';
-import { CreateProgramDto } from './dto/create-program.dto';
-import { UpdateProgramDto } from './dto/update-program.dto';
 
 @Controller('programs')
 export class ProgramsController {
   constructor(private readonly programsService: ProgramsService) {}
 
   @Post()
-  create(@Body() createProgramDto: CreateProgramDto) {
-    return this.programsService.create(createProgramDto);
+  create(
+    @Body() createProgramDto: { title: string; description?: string; courseIds?: string[]; published?: boolean },
+    @Headers('x-workspace-id') workspaceId?: string,
+  ) {
+    return this.programsService.create(workspaceId || 'dev-workspace-123', createProgramDto);
   }
 
   @Get()
-  findAll() {
-    return this.programsService.findAll();
+  findAll(@Headers('x-workspace-id') workspaceId?: string) {
+    return this.programsService.findAll(workspaceId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.programsService.findOne(+id);
+  findOne(@Param('id') id: string, @Headers('x-workspace-id') workspaceId?: string) {
+    return this.programsService.findOne(id, workspaceId);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateProgramDto: UpdateProgramDto) {
-    return this.programsService.update(+id, updateProgramDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateProgramDto: { title?: string; description?: string; courseIds?: string[]; published?: boolean },
+    @Headers('x-workspace-id') workspaceId?: string,
+  ) {
+    return this.programsService.update(id, workspaceId || 'dev-workspace-123', updateProgramDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.programsService.remove(+id);
+  remove(@Param('id') id: string, @Headers('x-workspace-id') workspaceId?: string) {
+    return this.programsService.remove(id, workspaceId || 'dev-workspace-123');
   }
 }

@@ -6,8 +6,9 @@ export class TagsService {
   constructor(private prisma: PrismaService) {}
 
   async getGroups(workspaceId: string) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     return this.prisma.tagGroup.findMany({
-      where: { workspaceId },
+      where: { workspaceId: wsId },
       include: {
         tags: {
           include: {
@@ -22,9 +23,10 @@ export class TagsService {
   }
 
   async createGroup(workspaceId: string, data: { name: string; description?: string; selectionMode?: string }) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     return this.prisma.tagGroup.create({
       data: {
-        workspaceId,
+        workspaceId: wsId,
         name: data.name,
         description: data.description,
         selectionMode: data.selectionMode || 'SINGLE',
@@ -36,8 +38,9 @@ export class TagsService {
   }
 
   async updateGroup(id: string, workspaceId: string, data: { name?: string; description?: string; selectionMode?: string }) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     const group = await this.prisma.tagGroup.findFirst({
-      where: { id, workspaceId },
+      where: { id, workspaceId: wsId },
     });
     if (!group) throw new NotFoundException('Tag group not found');
 
@@ -48,8 +51,9 @@ export class TagsService {
   }
 
   async deleteGroup(id: string, workspaceId: string) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     const group = await this.prisma.tagGroup.findFirst({
-      where: { id, workspaceId },
+      where: { id, workspaceId: wsId },
     });
     if (!group) throw new NotFoundException('Tag group not found');
 
@@ -59,9 +63,10 @@ export class TagsService {
   }
 
   async getTags(workspaceId: string, groupId?: string) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     return this.prisma.tag.findMany({
       where: {
-        workspaceId,
+        workspaceId: wsId,
         ...(groupId ? { groupId } : {}),
       },
       include: {
@@ -75,9 +80,10 @@ export class TagsService {
   }
 
   async createTag(workspaceId: string, data: { name: string; color?: string; description?: string; groupId?: string }) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     return this.prisma.tag.create({
       data: {
-        workspaceId,
+        workspaceId: wsId,
         name: data.name,
         color: data.color || '#3b82f6',
         description: data.description,
@@ -93,8 +99,9 @@ export class TagsService {
   }
 
   async updateTag(id: string, workspaceId: string, data: { name?: string; color?: string; description?: string; groupId?: string }) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     const tag = await this.prisma.tag.findFirst({
-      where: { id, workspaceId },
+      where: { id, workspaceId: wsId },
     });
     if (!tag) throw new NotFoundException('Tag not found');
 
@@ -111,8 +118,9 @@ export class TagsService {
   }
 
   async deleteTag(id: string, workspaceId: string) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     const tag = await this.prisma.tag.findFirst({
-      where: { id, workspaceId },
+      where: { id, workspaceId: wsId },
     });
     if (!tag) throw new NotFoundException('Tag not found');
 

@@ -146,4 +146,9 @@ export const api = {
     getOne: (id: string) => apiClient.get(`/workspaces/${id}`).then((res) => res.data),
     update: (id: string, data: any) => apiClient.patch(`/workspaces/${id}`, data).then((res) => res.data),
   },
+  apiKeys: {
+    getAll: () => apiClient.get('/api-keys').then((res) => res.data),
+    create: (name: string) => apiClient.post('/api-keys', { name }).then((res) => res.data),
+    delete: (id: string) => apiClient.delete(`/api-keys/${id}`).then((res) => res.data),
+  },
 };

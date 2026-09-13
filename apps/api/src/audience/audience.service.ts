@@ -7,9 +7,10 @@ export class AudienceService {
   constructor(private prisma: PrismaService) {}
 
   async getMembers(workspaceId: string, search?: string, role?: string) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     const members = await this.prisma.workspaceMember.findMany({
       where: {
-        workspaceId,
+        workspaceId: wsId,
         ...(role ? { role } : {}),
         ...(search
           ? {
@@ -30,7 +31,7 @@ export class AudienceService {
             email: true,
             createdAt: true,
             enrollments: {
-              where: { course: { workspaceId } },
+              where: { course: { workspaceId: wsId } },
               select: { id: true },
             },
           },
@@ -54,11 +55,12 @@ export class AudienceService {
   }
 
   async inviteMember(workspaceId: string, email: string, role: string) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     const token = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     const existing = await this.prisma.workspaceInvite.findFirst({
-      where: { workspaceId, email, status: 'PENDING' },
+      where: { workspaceId: wsId, email, status: 'PENDING' },
     });
 
     if (existing) {
@@ -69,13 +71,14 @@ export class AudienceService {
     }
 
     return this.prisma.workspaceInvite.create({
-      data: { workspaceId, email, role, token, expiresAt, status: 'PENDING' },
+      data: { workspaceId: wsId, email, role, token, expiresAt, status: 'PENDING' },
     });
   }
 
   async getPendingInvites(workspaceId: string) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     return this.prisma.workspaceInvite.findMany({
-      where: { workspaceId, status: 'PENDING', expiresAt: { gte: new Date() } },
+      where: { workspaceId: wsId, status: 'PENDING', expiresAt: { gte: new Date() } },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -110,8 +113,9 @@ export class AudienceService {
   }
 
   async removeMember(workspaceId: string, userId: string) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     const member = await this.prisma.workspaceMember.findFirst({
-      where: { workspaceId, userId },
+      where: { workspaceId: wsId, userId },
     });
     if (!member) throw new NotFoundException('Member not found');
     await this.prisma.workspaceMember.delete({ where: { id: member.id } });
@@ -119,8 +123,9 @@ export class AudienceService {
   }
 
   async updateMemberRole(workspaceId: string, userId: string, role: string) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     const member = await this.prisma.workspaceMember.findFirst({
-      where: { workspaceId, userId },
+      where: { workspaceId: wsId, userId },
     });
     if (!member) throw new NotFoundException('Member not found');
     return this.prisma.workspaceMember.update({

@@ -30,6 +30,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashStats | null>(null)
   const [certifications, setCertifications] = useState<Certification[]>([])
   const [loginActivity, setLoginActivity] = useState<LoginActivity[]>([])
+  const [workspaceSlug, setWorkspaceSlug] = useState("gurukulx")
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -37,14 +38,18 @@ export default function DashboardPage() {
     if (isRefresh) setRefreshing(true)
     else setLoading(true)
     try {
-      const [statsData, certsData, activityData] = await Promise.all([
+      const [statsData, certsData, activityData, setupData] = await Promise.all([
         api.dash.getStats(),
         api.dash.getRecentCertifications(),
         api.dash.getLoginActivity(),
+        api.workspaces.getSetupProgress().catch(() => null),
       ])
       setStats(statsData)
       setCertifications(certsData)
       setLoginActivity(activityData)
+      if (setupData?.workspace?.slug) {
+        setWorkspaceSlug(setupData.workspace.slug)
+      }
     } catch (err) {
       console.error("Failed to load dashboard data", err)
       // Set fallback data so the page still renders
@@ -114,7 +119,7 @@ export default function DashboardPage() {
             Create Course
           </Link>
           <Link
-            href="/st-peters"
+            href={`/${workspaceSlug}`}
             target="_blank"
             rel="noreferrer"
             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"

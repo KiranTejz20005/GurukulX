@@ -21,7 +21,7 @@ export function Topbar() {
           if (data?.workspace) setWorkspace(data.workspace)
         })
         .catch(() => {
-          setWorkspace({ name: "St. Peter's Engineering College", slug: "st-peters" })
+          setWorkspace({ name: "GurukulX Academy", slug: "gurukulx" })
         })
     })
   }, [])
@@ -52,9 +52,9 @@ export function Topbar() {
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [])
 
-  const orgName = workspace?.name || "St.Peter's Engineering College"
-  const orgInitials = orgName.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "ST"
-  const orgSlug = workspace?.slug || "st-peters"
+  const orgName = workspace?.name || "GurukulX Academy"
+  const orgInitials = orgName.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "GX"
+  const orgSlug = workspace?.slug || "gurukulx"
   const academyUrl = `/${orgSlug}`
 
   return (

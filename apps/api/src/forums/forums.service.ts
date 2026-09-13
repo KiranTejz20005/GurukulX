@@ -10,30 +10,32 @@ export class ForumsService {
   ) {}
 
   async findAll(workspaceId?: string) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     return this.prisma.forum.findMany({
-      where: workspaceId ? { workspaceId } : undefined,
+      where: { workspaceId: wsId },
       include: {
         posts: {
           include: { user: true },
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: 'desc' },
         },
         _count: { select: { posts: true } },
       },
-      orderBy: { id: 'desc' }
+      orderBy: { id: 'desc' },
     });
   }
 
   async createForum(data: { workspaceId: string; title: string; description?: string }) {
+    const wsId = await this.prisma.resolveWorkspaceId(data.workspaceId);
     return this.prisma.forum.create({
       data: {
-        workspaceId: data.workspaceId,
+        workspaceId: wsId,
         title: data.title,
         description: data.description,
       },
       include: {
         posts: true,
-        _count: { select: { posts: true } }
-      }
+        _count: { select: { posts: true } },
+      },
     });
   }
 
@@ -52,13 +54,14 @@ export class ForumsService {
   }
 
   async createPost(data: { forumId: string; userId: string; content: string; workspaceId?: string }) {
+    const uId = await this.prisma.resolveUserId(data.userId);
     const post = await this.prisma.forumPost.create({
-      data: { forumId: data.forumId, userId: data.userId, content: data.content },
+      data: { forumId: data.forumId, userId: uId, content: data.content },
       include: { user: true, forum: true },
     });
 
     // Resolve workspace for notification
-    const wsId = data.workspaceId || post.forum.workspaceId;
+    const wsId = await this.prisma.resolveWorkspaceId(data.workspaceId || post.forum.workspaceId);
     await this.notifications.create({
       workspaceId: wsId,
       type: 'FORUM_POST',

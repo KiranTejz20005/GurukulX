@@ -18,6 +18,7 @@ import { DashModule } from './dash/dash.module';
 import { AudienceModule } from './audience/audience.module';
 import { TagsModule } from './tags/tags.module';
 import { WidgetsModule } from './widgets/widgets.module';
+import { ApiKeysModule } from './api-keys/api-keys.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { WidgetsModule } from './widgets/widgets.module';
     AudienceModule,
     TagsModule,
     WidgetsModule,
+    ApiKeysModule,
   ],
   controllers: [AppController],
   providers: [AppService],

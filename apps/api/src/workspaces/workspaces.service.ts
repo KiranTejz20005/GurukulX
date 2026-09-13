@@ -24,34 +24,37 @@ export class WorkspacesService {
   }
 
   async findOne(id: string) {
+    const wsId = await this.prisma.resolveWorkspaceId(id);
     const workspace = await this.prisma.workspace.findUnique({
-      where: { id },
+      where: { id: wsId },
       include: { members: { include: { user: true } }, courses: true },
     });
-    if (!workspace) throw new NotFoundException(`Workspace with ID ${id} not found`);
+    if (!workspace) throw new NotFoundException(`Workspace not found`);
     return workspace;
   }
 
   async update(id: string, data: { name?: string; slug?: string; customDomain?: string; branding?: string }) {
-    await this.findOne(id);
-    return this.prisma.workspace.update({ where: { id }, data });
+    const ws = await this.findOne(id);
+    return this.prisma.workspace.update({ where: { id: ws.id }, data });
   }
 
   async remove(id: string) {
-    await this.findOne(id);
-    return this.prisma.workspace.delete({ where: { id } });
+    const ws = await this.findOne(id);
+    return this.prisma.workspace.delete({ where: { id: ws.id } });
   }
 
   async addMember(workspaceId: string, userId: string, role: string = 'STUDENT') {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
+    const uId = await this.prisma.resolveUserId(userId);
+    const user = await this.prisma.user.findUnique({ where: { id: uId } });
     const member = await this.prisma.workspaceMember.create({
-      data: { workspaceId, userId, role },
+      data: { workspaceId: wsId, userId: uId, role },
       include: { user: true },
     });
 
     // Fire MEMBER_JOINED notification
     await this.notifications.create({
-      workspaceId,
+      workspaceId: wsId,
       type: 'MEMBER_JOINED',
       title: 'New Member Joined',
       message: `${user?.name || user?.email || 'A new user'} joined the workspace as ${role}.`,
@@ -64,8 +67,9 @@ export class WorkspacesService {
   }
 
   async getSetupProgress(workspaceId: string) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     const workspace = await this.prisma.workspace.findUnique({
-      where: { id: workspaceId },
+      where: { id: wsId },
       include: {
         courses: {
           include: {
@@ -85,7 +89,7 @@ export class WorkspacesService {
         completedCount: 1,
         totalCount: 6,
         percentage: 17,
-        workspace: { id: workspaceId, name: "GurukulX", slug: "st-peters" },
+        workspace: { id: wsId, name: "GurukulX Academy", slug: "gurukulx" },
       };
     }
 

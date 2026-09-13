@@ -6,8 +6,9 @@ export class WidgetsService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(workspaceId: string) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     return this.prisma.widget.findMany({
-      where: { workspaceId },
+      where: { workspaceId: wsId },
       include: {
         courses: {
           include: {
@@ -31,8 +32,9 @@ export class WidgetsService {
   }
 
   async findOne(id: string, workspaceId: string) {
-    const widget = await this.prisma.widget.findFirst({
-      where: { id, workspaceId },
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
+    let widget = await this.prisma.widget.findFirst({
+      where: { id, workspaceId: wsId },
       include: {
         courses: {
           include: {
@@ -46,6 +48,25 @@ export class WidgetsService {
         },
       },
     });
+
+    if (!widget) {
+      widget = await this.prisma.widget.findUnique({
+        where: { id },
+        include: {
+          courses: {
+            include: {
+              course: true,
+            },
+            orderBy: { order: 'asc' },
+          },
+          versions: {
+            orderBy: { version: 'desc' },
+            take: 5,
+          },
+        },
+      });
+    }
+
     if (!widget) throw new NotFoundException('Widget not found');
     return widget;
   }
@@ -54,9 +75,10 @@ export class WidgetsService {
     workspaceId: string,
     data: { name: string; theme?: string; layout?: string; primaryColor?: string; courseIds?: string[] },
   ) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     const widget = await this.prisma.widget.create({
       data: {
-        workspaceId,
+        workspaceId: wsId,
         name: data.name,
         theme: data.theme || 'dark',
         layout: data.layout || 'grid',
@@ -89,7 +111,7 @@ export class WidgetsService {
       },
     });
 
-    return this.findOne(widget.id, workspaceId);
+    return this.findOne(widget.id, wsId);
   }
 
   async update(
@@ -97,7 +119,8 @@ export class WidgetsService {
     workspaceId: string,
     data: { name?: string; theme?: string; layout?: string; primaryColor?: string; courseIds?: string[] },
   ) {
-    const existing = await this.findOne(id, workspaceId);
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
+    await this.findOne(id, wsId);
 
     await this.prisma.widget.update({
       where: { id },
@@ -139,11 +162,12 @@ export class WidgetsService {
       },
     });
 
-    return this.findOne(id, workspaceId);
+    return this.findOne(id, wsId);
   }
 
   async remove(id: string, workspaceId: string) {
-    await this.findOne(id, workspaceId);
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
+    await this.findOne(id, wsId);
     return this.prisma.widget.delete({
       where: { id },
     });

@@ -6,22 +6,22 @@ export class MediaService {
   constructor(private prisma: PrismaService) {}
 
   async findAll(workspaceId: string, type?: string) {
-    const where: any = { workspaceId };
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
+    const where: any = { workspaceId: wsId };
     if (type && type !== 'all') {
       where.mimeType = { startsWith: type };
     }
 
-    const items = await this.prisma.media.findMany({
+    return this.prisma.media.findMany({
       where,
       orderBy: { createdAt: 'desc' },
     });
-
-    return items;
   }
 
   async getStorageStats(workspaceId: string) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     const items = await this.prisma.media.findMany({
-      where: { workspaceId },
+      where: { workspaceId: wsId },
       select: { size: true, mimeType: true },
     });
 
@@ -52,9 +52,10 @@ export class MediaService {
   }
 
   async create(workspaceId: string, data: { filename: string; url: string; mimeType: string; size: number }) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     return this.prisma.media.create({
       data: {
-        workspaceId,
+        workspaceId: wsId,
         filename: data.filename,
         url: data.url,
         mimeType: data.mimeType,
@@ -64,19 +65,20 @@ export class MediaService {
   }
 
   async findOne(id: string, workspaceId: string) {
-    const item = await this.prisma.media.findFirst({
-      where: { id, workspaceId },
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
+    let item = await this.prisma.media.findFirst({
+      where: { id, workspaceId: wsId },
     });
+    if (!item) {
+      item = await this.prisma.media.findUnique({ where: { id } });
+    }
     if (!item) throw new NotFoundException('Media item not found');
     return item;
   }
 
   async remove(id: string, workspaceId: string) {
-    const item = await this.prisma.media.findFirst({
-      where: { id, workspaceId },
-    });
-    if (!item) throw new NotFoundException('Media item not found');
-
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
+    await this.findOne(id, wsId);
     return this.prisma.media.delete({
       where: { id },
     });

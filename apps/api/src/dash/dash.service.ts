@@ -6,14 +6,13 @@ export class DashService {
   constructor(private prisma: PrismaService) {}
 
   async getStats(workspaceId?: string) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     const [certificates, courses, enrollments, recentCourses] = await Promise.all([
-      this.prisma.certificate.count(workspaceId ? { where: { workspaceId } } : undefined),
-      this.prisma.course.count(workspaceId ? { where: { workspaceId } } : undefined),
-      this.prisma.enrollment.count(
-        workspaceId ? { where: { course: { workspaceId } } } : undefined,
-      ),
+      this.prisma.certificate.count({ where: { workspaceId: wsId } }),
+      this.prisma.course.count({ where: { workspaceId: wsId } }),
+      this.prisma.enrollment.count({ where: { course: { workspaceId: wsId } } }),
       this.prisma.course.findMany({
-        where: workspaceId ? { workspaceId } : undefined,
+        where: { workspaceId: wsId },
         include: {
           _count: { select: { enrollments: true } },
         },
@@ -41,8 +40,9 @@ export class DashService {
   }
 
   async getRecentCertifications(workspaceId?: string) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     const certs = await this.prisma.certificate.findMany({
-      where: workspaceId ? { workspaceId } : undefined,
+      where: { workspaceId: wsId },
       include: {
         user: { select: { id: true, name: true, email: true } },
         course: { select: { id: true, title: true } },
@@ -61,6 +61,7 @@ export class DashService {
   }
 
   async getLoginActivity(workspaceId?: string) {
+    const wsId = await this.prisma.resolveWorkspaceId(workspaceId);
     // Aggregate login events by day of week from analytics events
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const ninetyDaysAgo = new Date();
@@ -68,7 +69,7 @@ export class DashService {
 
     const events = await this.prisma.analyticsPageEvent.findMany({
       where: {
-        ...(workspaceId ? { workspaceId } : {}),
+        workspaceId: wsId,
         eventType: 'page_view',
         createdAt: { gte: ninetyDaysAgo },
       },
